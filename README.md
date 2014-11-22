@@ -4,7 +4,7 @@ Download gmail mailbox via google takeout and convert mbox formated emails to pd
 
 Libs:
 
-use Data::Dumper;
-use Mail::Mbox::MessageParser;
-use Email::Simple;
-use Getopt::Long;
+ Data::Dumper
+ Mail::Mbox::MessageParser
+ Email::Simple
+ Getopt::Long
