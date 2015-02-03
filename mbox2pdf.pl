@@ -9,6 +9,7 @@ use Mail::Mbox::MessageParser;
 use MIME::Parser;
 use MIME::Words qw(:all);
 use MIME::Body;
+use PDF::Create;
 use Email::Simple;
 use Email::MIME;
 use Getopt::Long;
@@ -32,6 +33,7 @@ or die("Error in command line arguments\n");
  
 MIME::Tools->debugging(1) if($debug);
 MIME::Tools->quiet(1) if($verbose);
+     print MIME::Tools->version, "\n" if($verbose);
 
 # --------------------------------------------------
 # Check file
@@ -77,6 +79,11 @@ my $prologue 	= $mbox->prologue;
 my $email_count = 1;
 
 # --------------------------------------------------
+# PDF Vars
+# --------------------------------------------------
+my $pdf;
+
+# --------------------------------------------------
 # This is the main loop. It's executed once for each email
 # --------------------------------------------------
 while(! $mbox->end_of_file() )
@@ -89,10 +96,148 @@ while(! $mbox->end_of_file() )
 	$parser->output_to_core(5);
 
 	my $entity = $parser->parse_data($content);
+	my $header = $entity->head;
 	my $error = ($@ || $parser->last_error);
 	
+	
+	# returns text as a list
+	# returns all images as an array 
+	my ($text_ref,$images_ref) = handle_mime_body($email_count,$entity);
+
+	my @text 	= @$text_ref;
+	my @images 	= @$images_ref;
+
+
+	pdf_add_email($header, @text, @images);
+
+	$email_count++;	
+	last;
+}
+
+pdf_file("close");
+exit;
+
+# --------------------------------------------------------
+# Handle Body  
+# --------------------------------------------------------
+sub handle_mime_body {
+	
+	my $email_count = shift;
+	my $entity 	= shift;
+
+	my $plain_body 	= "";
+	my $html_body 	= "";
+	my $content_type;
+
+	# My Email Text
+	my @text;				
+    	my @images;
+
+	# --------------------------------------------
+	# create a pdf file / pdf object $pdf 
+	# --------------------------------------------
+	pdf_file("create");
+
+	# --------------------------------------------
+	# get email body
+	# --------------------------------------------
+	if ($entity->parts > 0){
+
+	
+		for (my $i=0; $i<$entity->parts; $i++){
+
+
+			# Mime Parts 
+			my $subentity = $entity->parts($i);
+			my $cf =  $subentity->mime_type;
+
+			logging("VERBOSE", "Entity Part '$cf'");
+	
+			# For "singlepart" types (text/*, image/*, etc.), the unencoded body data is referenced 
+			# via a MIME::Body object, accessed via the bodyhandle() method
+			if($cf =~ "text") {
+			
+				my @lines	= $subentity->bodyhandle->as_lines;
+			
+				foreach(@lines) {
+		
+					$_ =~ s/\r\n//;	
+					$_ =~ s/\n//;	
+					
+					push(@text, $_) if ( defined $_ && length($_) > 0);	
+				}
+			}
+			elsif($cf =~ "image") {
+				
+
+				# FIXME
+				next;	
+				my $filename = sprintf("%s_%s", $email_count, $subentity->head->recommended_filename);
+				push(@images, $subentity->bodyhandle->as_string);
+	
+				
+			}
+			elsif($cf =~ "video") {
+
+				logging("VERBOSE", "Part $i - Type '$cf'");
+			}
+		}
+
+	}
+	else {
+
+		logging("INFO", "No Body-Part found");
+		return 0;
+	}
+
+	# Return array be reference
+	return (\@text, \@images);
+}
+
+# --------------------------------------------------------
+# Handle PDF
+# --------------------------------------------------------
+sub pdf_file {
+	
+	my $task = shift;
+	my $filename = "/Users/markus/Desktop/feline_tagebuch.pdf";
+
+
+	if($task eq "create") {
+  		# initialize PDF
+  		$pdf = PDF::Create->new('filename'     => $filename,
+                                        'Author'       => 'Markus Monka',
+                                        'Title'        => 'Feline Tagebuch',
+					'Debug'	       => '5',
+                                        'CreationDate' => [ localtime ], );
+
+		return $pdf;
+	}
+	elsif($task eq "close") {
+
+		$pdf->close;
+
+	}
+	elsif($task eq "delete") {
+
+		unlink $filename;
+
+	}
+	else {
+		logging("ERROR", "Wrong task");
+	}
+
+}
+
+# --------------------------------------------------------
+# Add Email to an existing PDF File
+# Each Email should be one page 
+# --------------------------------------------------------
+sub pdf_add_email {
+
+	my ($header, @text, @images) = @_;
+	
 	# get email headers
-	my $header = $entity->head;
 	my $subject = $header->get('Subject');
 	my $to = $header->get('To');
 	my $from = $header->get('From');
@@ -100,7 +245,7 @@ while(! $mbox->end_of_file() )
 	my $contenttype = $header->get("Content-Type");
 
 	# if from facebook, skip
-	next if($from =~ /facebook/);
+	return 0 if($from =~ /facebook/);
 
 	# delete newlines
 	chomp($subject);
@@ -119,75 +264,39 @@ while(! $mbox->end_of_file() )
 		$subject = $decoded;
 
 	}
+
+	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
+
+	# Add a page which inherits its attributes from $a4
+  	my $page = $a4->new_page;
+ 
+	# Prepare a font
+  	my $f1 = $pdf->font('BaseFont' => 'Helvetica');
 	
-	logging("INFO", "Email Nr: $email_count");
-	logging("INFO", "Date '$date'");
-	logging("INFO", "From '$from'");
-	logging("INFO", "Subject '$subject'");
-	logging("INFO", "Email Content-Type '$contenttype'\n");
-	
-	# returns a hash ref with mime content
-	my $mail = handle_mime_body($entity);
+	# Mail Header Information 
+  	$page->stringc($f1, 12, 150, 696, "von $from");
+  	$page->stringc($f1, 12, 150, 722, "Datum $date");
+  	$page->stringc($f1, 12, 150, 753, "Subject '$subject'");
 
-	$email_count++;	
-}
+	my $tmp = 1;
+	my $content = "";
+	foreach(@text) {
 
-# --------------------------------------------------------
-# Handle Body  
-# --------------------------------------------------------
-sub handle_mime_body {
-
-	my $entity 	= shift;
-
-	my $plain_body 	= "";
-	my $html_body 	= "";
-	my $content_type;
-
-	# --------------------------------------------
-	# get email body
-	# --------------------------------------------
-	if ($entity->parts > 0){
-
-    		for (my $i=0; $i<$entity->parts; $i++){
-
-			# Mime Parts 
-			my $subentity = $entity->parts($i);
-
-			# For "singlepart" types (text/*, image/*, etc.), the unencoded body data is referenced 
-			# via a MIME::Body object, accessed via the bodyhandle() method
-			if($subentity->head->get('content-type') =~ "text") {
-				
-				my $body	= $subentity->bodyhandle;
-				my @lines 	= $body->as_lines;
-				my $string	= "";				
-
-				foreach (@lines) {
-
-					chomp($_);
-					$string = sprintf("%s %s", $string, $_);
-
-				}
-				
-				logging("VERBOSE", "Part $i - Type Text '$string'");
-			}
-			elsif($subentity->head->get('content-type') =~ "image") {
-
-				logging("VERBOSE", "Part $i - Type Image");
-			}
-			elsif($subentity->head->get('content-type') =~ "video") {
-
-				logging("VERBOSE", "Part $i - Type Video");
-			}
+		if($tmp == 1) {
+			logging("VERBOSE", "Text: $_");	
+			$content = $content . $_ . "\r\n";
 		}
-	}
-	else {
+		else {
+			print $_;	
+			my $jpg = $pdf->image($_);
+  			$page->image( 'image' => $jpg, 'xscale' => 0.2, 'yscale' => 0.2, 'xpos' => 350, 'ypos' => 400 );
 
-		logging("INFO", "No Body-Part found");
+		}
+		$tmp++;	
 	}
 
-	return 0;
+  	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
 }
-
 
 # --------------------------------------------------------
 # Logging 
