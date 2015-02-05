@@ -83,6 +83,11 @@ my $email_count = 1;
 # --------------------------------------------------
 my $pdf;
 
+# --------------------------------------------
+# create a pdf file / pdf object $pdf 
+# --------------------------------------------
+pdf_file("create");
+
 # --------------------------------------------------
 # This is the main loop. It's executed once for each email
 # --------------------------------------------------
@@ -93,7 +98,7 @@ while(! $mbox->end_of_file() )
 	my $parser = new MIME::Parser;
 
 	$parser->ignore_errors(0);
-	$parser->output_to_core(5);
+	$parser->output_to_core(0);
 
 	my $entity = $parser->parse_data($content);
 	my $header = $entity->head;
@@ -106,7 +111,6 @@ while(! $mbox->end_of_file() )
 
 	my @text 	= @$text_ref;
 	my @images 	= @$images_ref;
-
 
 	pdf_add_email($header, @text, @images);
 
@@ -133,10 +137,6 @@ sub handle_mime_body {
 	my @text;				
     	my @images;
 
-	# --------------------------------------------
-	# create a pdf file / pdf object $pdf 
-	# --------------------------------------------
-	pdf_file("create");
 
 	# --------------------------------------------
 	# get email body
@@ -149,13 +149,16 @@ sub handle_mime_body {
 
 			# Mime Parts 
 			my $subentity = $entity->parts($i);
-			my $cf =  $subentity->mime_type;
-
-			logging("VERBOSE", "Entity Part '$cf'");
+			
+			# --------------------------------------
+			# Content Type of Part
+			# --------------------------------------
+			my $ct =  $subentity->mime_type;
+			logging("VERBOSE", "Part $i - Content type '$ct'");
 	
 			# For "singlepart" types (text/*, image/*, etc.), the unencoded body data is referenced 
 			# via a MIME::Body object, accessed via the bodyhandle() method
-			if($cf =~ "text") {
+			if($ct =~ "text") {
 			
 				my @lines	= $subentity->bodyhandle->as_lines;
 			
@@ -167,19 +170,17 @@ sub handle_mime_body {
 					push(@text, $_) if ( defined $_ && length($_) > 0);	
 				}
 			}
-			elsif($cf =~ "image") {
+			elsif($ct =~ "image") {
 				
-
 				# FIXME
-				next;	
 				my $filename = sprintf("%s_%s", $email_count, $subentity->head->recommended_filename);
-				push(@images, $subentity->bodyhandle->as_string);
+				# push(@images, $subentity->bodyhandle->as_string);
 	
 				
 			}
-			elsif($cf =~ "video") {
+			elsif($ct =~ "video") {
 
-				logging("VERBOSE", "Part $i - Type '$cf'");
+				logging("VERBOSE", "Part $i - Type '$ct'");
 			}
 		}
 
@@ -208,7 +209,6 @@ sub pdf_file {
   		$pdf = PDF::Create->new('filename'     => $filename,
                                         'Author'       => 'Markus Monka',
                                         'Title'        => 'Feline Tagebuch',
-					'Debug'	       => '5',
                                         'CreationDate' => [ localtime ], );
 
 		return $pdf;
@@ -235,8 +235,10 @@ sub pdf_file {
 # --------------------------------------------------------
 sub pdf_add_email {
 
-	my ($header, @text, @images) = @_;
-	
+	my $header 	= shift;
+	my @text	= shift;
+	my @images 	= shift;
+
 	# get email headers
 	my $subject = $header->get('Subject');
 	my $to = $header->get('To');
