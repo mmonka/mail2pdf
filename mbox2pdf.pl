@@ -32,8 +32,7 @@ or die("Error in command line arguments\n");
 
  
 MIME::Tools->debugging(1) if($debug);
-MIME::Tools->quiet(1) if($verbose);
-     print MIME::Tools->version, "\n" if($verbose);
+MIME::Tools->quiet(0) if($verbose);
 
 # --------------------------------------------------
 # Check file
@@ -100,6 +99,9 @@ while(! $mbox->end_of_file() )
 	$parser->ignore_errors(0);
 	$parser->output_to_core(0);
 
+    	### Tell it where to put things:
+    	$parser->output_under("/tmp");
+
 	my $entity = $parser->parse_data($content);
 	my $header = $entity->head;
 	my $error = ($@ || $parser->last_error);
@@ -115,7 +117,7 @@ while(! $mbox->end_of_file() )
 	pdf_add_email($header, @text, @images);
 
 	$email_count++;	
-	last;
+	last if($email_count == 3);
 }
 
 pdf_file("close");
@@ -154,7 +156,6 @@ sub handle_mime_body {
 			# Content Type of Part
 			# --------------------------------------
 			my $ct =  $subentity->mime_type;
-			logging("VERBOSE", "Part $i - Content type '$ct'");
 	
 			# For "singlepart" types (text/*, image/*, etc.), the unencoded body data is referenced 
 			# via a MIME::Body object, accessed via the bodyhandle() method
@@ -166,15 +167,17 @@ sub handle_mime_body {
 		
 					$_ =~ s/\r\n//;	
 					$_ =~ s/\n//;	
-					
+
+					logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$_'");					
 					push(@text, $_) if ( defined $_ && length($_) > 0);	
 				}
 			}
 			elsif($ct =~ "image") {
-				
-				# FIXME
-				my $filename = sprintf("%s_%s", $email_count, $subentity->head->recommended_filename);
-				# push(@images, $subentity->bodyhandle->as_string);
+			
+				my $path = $subentity->bodyhandle->path;
+	
+				logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$path'");					
+				push(@images, $subentity->bodyhandle->path);
 	
 				
 			}
@@ -289,7 +292,7 @@ sub pdf_add_email {
 			$content = $content . $_ . "\r\n";
 		}
 		else {
-			print $_;	
+			print "FILE" . $_;	
 			my $jpg = $pdf->image($_);
   			$page->image( 'image' => $jpg, 'xscale' => 0.2, 'yscale' => 0.2, 'xpos' => 350, 'ypos' => 400 );
 
