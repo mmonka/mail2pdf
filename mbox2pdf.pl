@@ -283,24 +283,28 @@ sub pdf_add_email {
   	$page->stringc($f1, 12, 150, 722, "Datum $date");
   	$page->stringc($f1, 12, 150, 753, "Subject '$subject'");
 
-	my $tmp = 1;
 	my $content = "";
+
+	# Get Text-Element and add to PDF
 	foreach(@text) {
 
-		if($tmp == 1) {
-			logging("VERBOSE", "Text: $_");	
-			$content = $content . $_ . "\r\n";
-		}
-		else {
-			print "FILE" . $_;	
-			my $jpg = $pdf->image($_);
-  			$page->image( 'image' => $jpg, 'xscale' => 0.2, 'yscale' => 0.2, 'xpos' => 350, 'ypos' => 400 );
+		logging("VERBOSE", "Text: $_");	
+		$content = $content . $_ . "\r\n";
+			
 
-		}
-		$tmp++;	
 	}
 
   	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
+
+	# Setting Pics to PDF	
+	foreach(@images) {
+
+		print "FILE" . $_;	
+		my $jpg = $pdf->image($_);
+  		$page->image( 'image' => $jpg, 'xscale' => 0.2, 'yscale' => 0.2, 'xpos' => 350, 'ypos' => 400 );
+
+	}
+
 }
 
 # --------------------------------------------------------
