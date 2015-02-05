@@ -21,6 +21,9 @@ my $mboxfile;
 my $verbose;
 my $debug;
 
+our @text;
+our @images;
+
 # --------------------------------------------------
 # Getopt definition
 # --------------------------------------------------
@@ -106,18 +109,11 @@ while(! $mbox->end_of_file() )
 	my $header = $entity->head;
 	my $error = ($@ || $parser->last_error);
 	
-	
-	# returns text as a list
-	# returns all images as an array 
-	my ($text_ref,$images_ref) = handle_mime_body($email_count,$entity);
-
-	my @text 	= @$text_ref;
-	my @images 	= @$images_ref;
-
-	pdf_add_email($header, @text, @images);
+	handle_mime_body($email_count,$entity);
+	pdf_add_email($header);
 
 	$email_count++;	
-	last if($email_count == 3);
+	# last if($email_count == 20);
 }
 
 pdf_file("close");
@@ -135,19 +131,16 @@ sub handle_mime_body {
 	my $html_body 	= "";
 	my $content_type;
 
-	# My Email Text
-	my @text;				
-    	my @images;
-
+	# erase global array content
+	@text	= ();
+	@images = ();
 
 	# --------------------------------------------
 	# get email body
 	# --------------------------------------------
 	if ($entity->parts > 0){
 
-	
 		for (my $i=0; $i<$entity->parts; $i++){
-
 
 			# Mime Parts 
 			my $subentity = $entity->parts($i);
@@ -159,29 +152,39 @@ sub handle_mime_body {
 	
 			# For "singlepart" types (text/*, image/*, etc.), the unencoded body data is referenced 
 			# via a MIME::Body object, accessed via the bodyhandle() method
-			if($ct =~ "text") {
-			
-				my @lines	= $subentity->bodyhandle->as_lines;
+			if($ct =~ "text/plain") {
+		
+				# -----------------------------------	
+				# Get the text as list
+				# -----------------------------------	
+				my @lines = $subentity->bodyhandle->as_lines;
 			
 				foreach(@lines) {
 		
 					$_ =~ s/\r\n//;	
 					$_ =~ s/\n//;	
+					
+					if ( defined $_ && length($_) > 0) {
 
-					logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$_'");					
-					push(@text, $_) if ( defined $_ && length($_) > 0);	
+						push(@text, $_);	
+						logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$_'");					
+					}
 				}
 			}
-			elsif($ct =~ "image") {
+
+			if($ct =~ "image") {
 			
 				my $path = $subentity->bodyhandle->path;
 	
 				logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$path'");					
-				push(@images, $subentity->bodyhandle->path);
-	
-				
+				push(@images, $path);
 			}
-			elsif($ct =~ "video") {
+			if($ct =~ "text/html") {
+
+				logging("VERBOSE", "Part $i - Type '$ct'");
+			}
+
+			if($ct =~ "video") {
 
 				logging("VERBOSE", "Part $i - Type '$ct'");
 			}
@@ -195,7 +198,7 @@ sub handle_mime_body {
 	}
 
 	# Return array be reference
-	return (\@text, \@images);
+	return 1;
 }
 
 # --------------------------------------------------------
@@ -206,7 +209,9 @@ sub pdf_file {
 	my $task = shift;
 	my $filename = "/Users/markus/Desktop/feline_tagebuch.pdf";
 
-
+	# ---------------------------------------------------
+	# Create PDF object
+	# ---------------------------------------------------
 	if($task eq "create") {
   		# initialize PDF
   		$pdf = PDF::Create->new('filename'     => $filename,
@@ -239,8 +244,6 @@ sub pdf_file {
 sub pdf_add_email {
 
 	my $header 	= shift;
-	my @text	= shift;
-	my @images 	= shift;
 
 	# get email headers
 	my $subject = $header->get('Subject');
@@ -288,10 +291,9 @@ sub pdf_add_email {
 	# Get Text-Element and add to PDF
 	foreach(@text) {
 
+		next if($_ eq "delete");
 		logging("VERBOSE", "Text: $_");	
 		$content = $content . $_ . "\r\n";
-			
-
 	}
 
   	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
@@ -299,9 +301,11 @@ sub pdf_add_email {
 	# Setting Pics to PDF	
 	foreach(@images) {
 
-		print "FILE" . $_;	
+		print "FILE: " . $_ . "\n";	
+		next if($_ =~ /PNG/);
+
 		my $jpg = $pdf->image($_);
-  		$page->image( 'image' => $jpg, 'xscale' => 0.2, 'yscale' => 0.2, 'xpos' => 350, 'ypos' => 400 );
+  		$page->image( 'image' => $jpg, 'xscale' => 0.1, 'yscale' => 0.1, 'xpos' => 35, 'ypos' => 200 );
 
 	}
 
