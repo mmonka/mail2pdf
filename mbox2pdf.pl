@@ -10,9 +10,10 @@ use MIME::Parser;
 use MIME::Words qw(:all);
 use MIME::Body;
 use PDF::Create;
-use Email::Simple;
-use Email::MIME;
 use Getopt::Long;
+
+# Image Manipulatin
+use Image::Magick;
    
 # --------------------------------------------------
 # Global Variables
@@ -107,13 +108,17 @@ while(! $mbox->end_of_file() )
 
 	my $entity = $parser->parse_data($content);
 	my $header = $entity->head;
+
+	# Sanity checks
+	next if ($header->get('From') =~ /facebook/);
+
 	my $error = ($@ || $parser->last_error);
 	
 	handle_mime_body($email_count,$entity);
 	pdf_add_email($header);
 
 	$email_count++;	
-	# last if($email_count == 20);
+	last if($email_count == 26);
 }
 
 pdf_file("close");
@@ -252,15 +257,14 @@ sub pdf_add_email {
 	my $date = $header->get('Date');
 	my $contenttype = $header->get("Content-Type");
 
-	# if from facebook, skip
-	return 0 if($from =~ /facebook/);
-
 	# delete newlines
 	chomp($subject);
 	chomp($to);
 	chomp($from);
 	chomp($date);
 	chomp($contenttype);
+
+	logging("VERBOSE", "Email from '$from'");
 
 	# decode subject 
 	if($subject =~ /.*(utf-8|utf8).*/) {
@@ -298,17 +302,64 @@ sub pdf_add_email {
 
   	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
 
+	# --------------------------------------------------------
+	# How Many Images we have to put on the page
+	# --------------------------------------------------------
+	my $arrSize = @images;
+	my $count   = 1;	
+
+	# --------------------------------------------------------
 	# Setting Pics to PDF	
+	# --------------------------------------------------------
 	foreach(@images) {
 
-		print "FILE: " . $_ . "\n";	
 		next if($_ =~ /PNG/);
 
-		my $jpg = $pdf->image($_);
-  		$page->image( 'image' => $jpg, 'xscale' => 0.1, 'yscale' => 0.1, 'xpos' => 35, 'ypos' => 200 );
+		# --------------------------------------------------------
+		# TODO: check orientation of image
+		#       -> AUTO ROTATION
+		# --------------------------------------------------------
+		my $image = Image::Magick->new(magick=>'JPEG');
+		$image->set(debug=>10);
+		my $x = $image->Read($_);
+		$image->AutoOrient();
 
+		# new filename 
+		my $file;
+	
+		if($_ =~ /^(.*)\/(.*)$/) {
+
+			$file = sprintf("%s/modified_%s", $1, $2);
+			logging("VERBOSE", "New Filename '$file'");
+		}	
+			
+		$x = $image->Write($file);
+		unlink($_);
+
+		my ($xpos, $ypos) = image_position($arrSize, $count);
+		my $jpg = $pdf->image($file);
+  		$page->image( 'image' => $jpg, 'xscale' => 0.1, 'yscale' => 0.1, 'xpos' => $xpos, 'ypos' => $ypos );
+
+		$count++;
 	}
+}
 
+# --------------------------------------------------------
+# Position of the image
+# Todo: BIN Packing 
+# --------------------------------------------------------
+sub image_position {
+
+	my ($arrSize, $count) = @_;
+
+	my $xpos = 35;
+	my $ypos = 200;
+
+	$xpos = $xpos + 200 if($count > 1);
+
+	logging("VERBOSE", "Image Position arrSize '$arrSize' count '$count' x '$xpos' y '$ypos'");
+
+	return $xpos, $ypos;
 }
 
 # --------------------------------------------------------
