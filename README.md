@@ -4,12 +4,20 @@ Download gmail mailbox via google takeout and convert mbox formated emails to pd
 
 Libs:
 
- Data::Dumper
- Mail::Mbox::MessageParser
- MIME::Parser
- MIME::Words qw(:all)
- MIME::Body
- PDF::Create
- Email::Simple
- Email::MIME
- Getopt::Long
+Data::Dumper
+
+Mail::Mbox::MessageParser
+
+MIME::Parser
+
+MIME::Words qw(:all)
+
+MIME::Body
+
+PDF::Create
+
+Email::Simple
+
+Email::MIME
+
+Getopt::Long
