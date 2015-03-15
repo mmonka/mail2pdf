@@ -6,6 +6,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Mail::Mbox::MessageParser;
+use Date::Parse;
 use MIME::Parser;
 use MIME::Words qw(:all);
 use MIME::Body;
@@ -117,7 +118,7 @@ while(! $mbox->end_of_file() )
 	pdf_add_email($header);
 
 	$email_count++;	
-	# last if($email_count == 26);
+	last if($email_count == 26);
 }
 
 pdf_file("close");
@@ -275,6 +276,11 @@ sub pdf_add_email {
 	chomp($date);
 	chomp($contenttype);
 
+	# Convert Date
+	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
+	$date = sprintf("%s.%s.%s %s:%s", $day, $month, $year + 1900, $hh, $mm);
+
+	# Logingg
 	logging("VERBOSE", "'$date' Email from '$from'");
 
 	# decode subject 
@@ -298,10 +304,12 @@ sub pdf_add_email {
   	my $f1 = $pdf->font('BaseFont' => 'Helvetica');
 	
 	# Mail Header Information 
-  	$page->stringc($f1, 12, 150, 696, "von $from");
-  	$page->stringc($f1, 12, 150, 722, "Datum $date");
-  	$page->stringc($f1, 12, 150, 753, "Subject '$subject'");
+  	$page->stringc($f1, 12, 250, 753, "$date: '$from' - $subject");
+  	$page->stringc($f1, 12, 250, 740, "$subject");
 
+	# ----------------------------------------------------------------
+	# ContentText
+	# ----------------------------------------------------------------
 	my $content = "";
 
 	# Get Text-Element and add to PDF
@@ -309,11 +317,13 @@ sub pdf_add_email {
 
 		next if($_ eq "delete");
 		logging("VERBOSE", "Text: $_");	
-		$content = $content . $_ . "\r\n";
+		$content = $content . decode_mimewords($_) . "\r\n";
 	}
 
-  	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
+	if(length($content) > 0) {
 
+	  	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
+	}
 	# --------------------------------------------------------
 	# TODO: check orientation of image
 	#       -> AUTO ROTATION
@@ -339,7 +349,7 @@ sub pdf_add_email {
 	
 	# Single Image Email
 	if($arrSize == 1) {
-			
+
 		$image->Read($images[0]);
 		$image->AutoOrient();
 		$image->Resize( geometry => '500x600' );
@@ -369,9 +379,26 @@ sub pdf_add_email {
 			$image->AutoOrient();
 		}
 
+		my $tile = "";
+		my $geometry = "100x100";
+
+		if($arrSize == 2) {
+
+			$geometry = "250x300";
+			$tile = "2x";
+
+			$xpos = 10;
+			$ypos = 100;
+		}
+		elsif($arrSize == 4) {
+
+			$geometry = "125x150";
+			$tile = "2x2";
+		}
+
 		# Image Montage
 		logging("VERBOSE", "!!!!!Multi Image Email -> Montage");
-		my $montage = $image->Montage(background => "white", borderwidth => "5", geometry => "100x100");
+		my $montage = $image->Montage(background => "white", borderwidth => "0", geometry => $geometry, tile => $tile);
 		$x = $montage->Write('jpg:'.$file);
 	}
 	else {
