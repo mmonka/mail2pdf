@@ -52,7 +52,6 @@ if (!check_mbox_file($mboxfile)) {
 # --------------------------------------------------
 my $filehandle = new FileHandle($mboxfile);
 
-
 # Set up cache
 # Mail::Mbox::MessageParser::SETUP_CACHE(	{ 'file_name' => '/tmp/cache' } );
 
@@ -118,7 +117,7 @@ while(! $mbox->end_of_file() )
 	pdf_add_email($header);
 
 	$email_count++;	
-	last if($email_count == 26);
+	# last if($email_count == 26);
 }
 
 pdf_file("close");
@@ -181,8 +180,20 @@ sub handle_mime_body {
 			
 				my $path = $subentity->bodyhandle->path;
 	
-				logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$path'");					
+		
+				my $image = Image::Magick->new(magick=>'JPEG');
+				$image->set(debug=>10);
+				$image->Read($path);
+
+				my $width  = $image->Get('width');	
+				my $height = $image->Get('height');	
+
+				logging("VERBOSE", "Part '$i' - Size '$width' x '$height' Adding Content Type '$ct' '$path' ");					
+				# Todo: Change to hash and add Image Size
 				push(@images, $path);
+
+				
+
 			}
 			if($ct =~ "text/html") {
 
@@ -264,7 +275,7 @@ sub pdf_add_email {
 	chomp($date);
 	chomp($contenttype);
 
-	logging("VERBOSE", "Email from '$from'");
+	logging("VERBOSE", "'$date' Email from '$from'");
 
 	# decode subject 
 	if($subject =~ /.*(utf-8|utf8).*/) {
@@ -277,6 +288,7 @@ sub pdf_add_email {
 
 	}
 
+	# 72 DPI -> 595 x 842
 	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
 
 	# Add a page which inherits its attributes from $a4
@@ -303,57 +315,101 @@ sub pdf_add_email {
   	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
 
 	# --------------------------------------------------------
-	# How Many Images we have to put on the page
+	# TODO: check orientation of image
+	#       -> AUTO ROTATION
+	# --------------------------------------------------------
+	my $image = Image::Magick->new(magick=>'JPEG');
+	$image->set(debug=>'all') if($debug);
+	$image->set(verbose=>'true') if($verbose);
+	
+	# --------------------------------------------------------
+	# Set Pics to PDF	
 	# --------------------------------------------------------
 	my $arrSize = @images;
-	my $count   = 1;	
+	my $file = "/tmp/123456789.jpg";
+	my $x;
 
-	# --------------------------------------------------------
-	# Setting Pics to PDF	
-	# --------------------------------------------------------
-	foreach(@images) {
+	# Image Size
+	my $w;
+	my $h;
 
-		next if($_ =~ /PNG/);
-
-		# --------------------------------------------------------
-		# TODO: check orientation of image
-		#       -> AUTO ROTATION
-		# --------------------------------------------------------
-		my $image = Image::Magick->new(magick=>'JPEG');
-		$image->set(debug=>10);
-		my $x = $image->Read($_);
-		$image->AutoOrient();
-
-		# new filename 
-		my $file;
+	# Image Position
+	my $xpos = 0;
+	my $ypos = 0;
 	
-		if($_ =~ /^(.*)\/(.*)$/) {
-
-			$file = sprintf("%s/modified_%s", $1, $2);
-			logging("VERBOSE", "New Filename '$file'");
-		}	
+	# Single Image Email
+	if($arrSize == 1) {
 			
+		$image->Read($images[0]);
+		$image->AutoOrient();
+		$image->Resize( geometry => '500x600' );
+		$w = $image->Get("width");
+		$h = $image->Get("height");
 		$x = $image->Write($file);
-		unlink($_);
 
-		my ($xpos, $ypos) = image_position($arrSize, $count);
-		my $jpg = $pdf->image($file);
-  		$page->image( 'image' => $jpg, 'xscale' => 0.1, 'yscale' => 0.1, 'xpos' => $xpos, 'ypos' => $ypos );
-
-		$count++;
+		$xpos = 10;
+		$ypos = 600 - $h;
+	
+		logging("VERBOSE", "Position w '$w' h '$h' x '$xpos' y '$ypos'");
+	
 	}
+	# Multi Image Email
+	elsif ($arrSize > 1) {
+
+		foreach(@images) {
+
+			if($_ =~ /PNG/) {
+
+				logging("VERBOSE", "skip PNG '$_'");
+				next;
+			}
+			
+			logging("VERBOSE", "Read file '$_'");
+			$image->Read($_);
+			$image->AutoOrient();
+		}
+
+		# Image Montage
+		logging("VERBOSE", "!!!!!Multi Image Email -> Montage");
+		my $montage = $image->Montage(background => "white", borderwidth => "5", geometry => "100x100");
+		$x = $montage->Write('jpg:'.$file);
+	}
+	else {
+
+		logging("VERBOSE", "No Images found");
+		return 0;
+	}
+
+	my $jpg = $pdf->image($file);
+	$page->image( 'image' => $jpg, 'xpos' => $xpos, 'ypos' => $ypos );
+
+	unlink($image);
+	unlink($file);
+	return 0;
 }
 
 # --------------------------------------------------------
 # Position of the image
 # Todo: BIN Packing 
+# 
+# 595x600 is for pics
+# 
 # --------------------------------------------------------
 sub image_position {
 
-	my ($arrSize, $count) = @_;
+	my ($arrSize, $count, $width, $height) = @_;
 
 	my $xpos = 35;
 	my $ypos = 200;
+
+	if($width > 595) {
+
+		$xpos = 0;
+	}
+	if($width > 600) {
+
+		$ypos = 0;
+	}
 
 	$xpos = $xpos + 200 if($count > 1);
 
