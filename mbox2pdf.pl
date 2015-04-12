@@ -40,7 +40,7 @@ GetOptions(	"mboxfile=s" => \$mboxfile, # string
 	  ) # flag
 or die("Error in command line arguments\n");
 
-if($testlimit =~ /([\d]),([\d])/) {
+if($testlimit =~ /([\d]+),([\d]+)/) {
 
 	$start = $1;
 	$end   = $2;
@@ -148,8 +148,6 @@ while(! $mbox->end_of_file() )
 		last if($email_count > $testlimit);
 	}
 
-
-	
 	my $parser = new MIME::Parser;
 
 	$parser->ignore_errors(0);
@@ -356,7 +354,7 @@ sub pdf_add_email {
   	my $f1 = $pdf->font('BaseFont' => 'Times-Roman');
 	
 	# Mail Header Information 
-  	$page->stringc($f1, 12, 250, 753, "$date: '$from'");
+  	$page->stringc($f1, 12, 250, 753, "$email_count -> $date: '$from'");
   	$page->stringc($f1, 12, 250, 740, "$subject");
 
 	# ----------------------------------------------------------------
@@ -441,10 +439,37 @@ sub pdf_add_email {
 			$xpos = 10;
 			$ypos = 100;
 		}
+		elsif($arrSize == 3) {
+
+			$geometry = "250x300";
+			$tile = "2x";
+			
+			$xpos = 10;
+			$ypos = 100;
+		}
 		elsif($arrSize == 4) {
 
 			$geometry = "125x150";
 			$tile = "2x2";
+			
+			$xpos = 10;
+			$ypos = 100;
+		}
+		elsif($arrSize == 5) {
+
+			$geometry = "125x150";
+			$tile = "3x2";
+			
+			$xpos = 10;
+			$ypos = 100;
+		}
+		elsif($arrSize == 6) {
+
+			$geometry = "125x150";
+			$tile = "3x2";
+			
+			$xpos = 10;
+			$ypos = 100;
 		}
 
 		# Image Montage
