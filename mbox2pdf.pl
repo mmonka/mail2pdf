@@ -12,6 +12,7 @@ use MIME::Words qw(:all);
 use MIME::Body;
 use PDF::Create;
 use Getopt::Long;
+use Encode;
 
 # Image Manipulatin
 use Image::Magick;
@@ -22,6 +23,9 @@ use Image::Magick;
 my $mboxfile;
 my $verbose;
 my $debug;
+my $testlimit = 0;
+my $start = 0;
+my $end = 0;
 
 our @text;
 our @images;
@@ -31,10 +35,18 @@ our @images;
 # --------------------------------------------------
 GetOptions(	"mboxfile=s" => \$mboxfile, # string
     		"verbose" => \$verbose,
-    		"debug" => \$debug
+    		"debug" => \$debug,
+		"testlimit=s" => \$testlimit, 
 	  ) # flag
 or die("Error in command line arguments\n");
 
+if($testlimit =~ /,/) {
+
+	($start, $end) = split(",", $testlimit);
+	logging("VERBOSE", "Testlimit between '$start' '$end'");
+}
+
+logging("Verbose", "Testlimit '$testlimit'") if($testlimit);
  
 MIME::Tools->debugging(1) if($debug);
 MIME::Tools->quiet(0) if($verbose);
@@ -96,7 +108,38 @@ pdf_file("create");
 # --------------------------------------------------
 while(! $mbox->end_of_file() )
 {
+
+	last if($email_count > $testlimit);
+
+	logging("VERBOSE", "Start Parsing Email '$email_count'");
+
+	# Fetch Email Content
 	my $content = $mbox->read_next_email();
+	
+	# Check Options for debugging
+	if($start > 0 && $end > 0 ) {
+
+		# skip processing
+		if($email_count >= $start && $email_count <= $end ) {
+		
+			logging("VERBOSE", "$start <= '$email_count' > $end");
+		}
+		else {
+
+			logging("VERBOSE", "Skip Email '$email_count'");
+			$email_count++;
+			next;
+		}
+	
+		last if($email_count > $end);
+	}
+	else {
+
+		# Stop processing
+		last if($email_count == $testlimit);
+	}
+
+
 	
 	my $parser = new MIME::Parser;
 
@@ -117,8 +160,7 @@ while(! $mbox->end_of_file() )
 	handle_mime_body($email_count,$entity);
 	pdf_add_email($header);
 
-	$email_count++;	
-	last if($email_count == 26);
+	$email_count++;
 }
 
 pdf_file("close");
@@ -183,7 +225,6 @@ sub handle_mime_body {
 	
 		
 				my $image = Image::Magick->new(magick=>'JPEG');
-				$image->set(debug=>10);
 				$image->Read($path);
 
 				my $width  = $image->Get('width');	
@@ -280,19 +321,21 @@ sub pdf_add_email {
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
 	$date = sprintf("%s.%s.%s %s:%s", $day, $month, $year + 1900, $hh, $mm);
 
-	# Logingg
+	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
 
 	# decode subject 
-	if($subject =~ /.*(utf-8|utf8).*/) {
+	if(! $subject =~ /.*(utf-8|utf8).*/) {
 
-		logging("DEBUG", "Subject encoding is utf8");
 		my $decoded = decode_mimewords($subject);
 
 		# Fix encoding
 		$subject = $decoded;
 
+		logging("DEBUG", "Subject encoding is utf8 - '$subject'");
 	}
+
+	logging("VERBOSE", "Subject: '$subject'");
 
 	# 72 DPI -> 595 x 842
 	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
@@ -301,10 +344,10 @@ sub pdf_add_email {
   	my $page = $a4->new_page;
  
 	# Prepare a font
-  	my $f1 = $pdf->font('BaseFont' => 'Helvetica');
+  	my $f1 = $pdf->font('BaseFont' => 'Times-Roman');
 	
 	# Mail Header Information 
-  	$page->stringc($f1, 12, 250, 753, "$date: '$from' - $subject");
+  	$page->stringc($f1, 12, 250, 753, "$date: '$from'");
   	$page->stringc($f1, 12, 250, 740, "$subject");
 
 	# ----------------------------------------------------------------
@@ -322,14 +365,13 @@ sub pdf_add_email {
 
 	if(length($content) > 0) {
 
-	  	$page->stringc($f1, 20, 150, 650, "Text: " . $content);
+	  	$page->stringc($f1, 12, 250, 720, $content);
 	}
 	# --------------------------------------------------------
 	# TODO: check orientation of image
 	#       -> AUTO ROTATION
 	# --------------------------------------------------------
 	my $image = Image::Magick->new(magick=>'JPEG');
-	$image->set(debug=>'all') if($debug);
 	$image->set(verbose=>'true') if($verbose);
 	
 	# --------------------------------------------------------
