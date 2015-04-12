@@ -40,9 +40,18 @@ GetOptions(	"mboxfile=s" => \$mboxfile, # string
 	  ) # flag
 or die("Error in command line arguments\n");
 
-if($testlimit =~ /,/) {
+if($testlimit =~ /([\d]),([\d])/) {
 
-	($start, $end) = split(",", $testlimit);
+	$start = $1;
+	$end   = $2;
+	$testlimit = $2;
+
+	if($start > $end) {
+	
+		logging("INFO", "Testlimit Range is illegal");
+		exit;
+	}	
+	
 	logging("VERBOSE", "Testlimit between '$start' '$end'");
 }
 
@@ -136,7 +145,7 @@ while(! $mbox->end_of_file() )
 	else {
 
 		# Stop processing
-		last if($email_count == $testlimit);
+		last if($email_count > $testlimit);
 	}
 
 
