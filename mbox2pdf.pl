@@ -388,9 +388,6 @@ sub pdf_add_email {
 	my $file = "/tmp/123456789.jpg";
 	my $x;
 
-	# Image Size
-	my $w;
-	my $h;
 
 	# Image Position
 	my $xpos = 0;
@@ -399,9 +396,29 @@ sub pdf_add_email {
 	# Single Image Email
 	if($arrSize == 1) {
 
+		my $geometry;
+		
+		# Image Size
 		$image->Read($images[0]);
+		my $w = $image->Get("width");
+		my $h = $image->Get("height");
+
+		# --------------------------------------------------------
+		# Do not resize, resolution is to small
+		# --------------------------------------------------------
+		if($w < 500 && $h < 600) {
+
+			$geometry = sprintf("%sx%s", $w, $h);
+		}
+		# --------------------------------------------------------
+		# Resize resolution is large
+		# --------------------------------------------------------
+		else {
+
+			$geometry = "500x600";
+		}
 		$image->AutoOrient();
-		$image->Resize( geometry => '500x600' );
+		$image->Resize( geometry => $geometry );
 		$w = $image->Get("width");
 		$h = $image->Get("height");
 		$x = $image->Write($file);
