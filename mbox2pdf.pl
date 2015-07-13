@@ -23,9 +23,12 @@ use Image::Magick;
 my $mboxfile;
 my $verbose;
 my $debug;
+my $help;
 my $testlimit = 0;
 my $start = 0;
 my $end = 0;
+# Path to PDF File
+my $path = "/Users/markus/Desktop/";
 
 our @text;
 our @images;
@@ -36,9 +39,22 @@ our @images;
 GetOptions(	"mboxfile=s" => \$mboxfile, # string
     		"verbose" => \$verbose,
     		"debug" => \$debug,
+		"help" => \$help,
 		"testlimit=s" => \$testlimit, 
 	  ) # flag
 or die("Error in command line arguments\n");
+
+if($help) {
+
+	print "./mbox2pdf --options\n\n";
+	print "--mboxfile=FILE\n"; 
+	print "--verbose\n"; 
+	print "--debug\n";
+	print "--testlimit=Start(,End)\n"; 
+	exit;
+}
+
+logging("VERBOSE", "Testlimit $testlimit");
 
 if($testlimit =~ /([\d]+),([\d]+)/) {
 
@@ -48,8 +64,8 @@ if($testlimit =~ /([\d]+),([\d]+)/) {
 
 	if($start > $end) {
 	
-		logging("INFO", "Testlimit Range is illegal");
-		exit;
+		$end = $start + $end;
+		logging("INFO", "End looks like an Offset. Recalculate end ($end)");
 	}	
 	
 	logging("VERBOSE", "Testlimit between '$start' '$end'");
@@ -84,7 +100,7 @@ my $mbox = new Mail::Mbox::MessageParser( {
 		'file_name' => $mboxfile,
 		'file_handle' => $filehandle,
 		'enable_cache' => 0,
-		'enable_grep' => 0,
+		'enable_grep' => 1,
 		'debug' => $debug,
 		} );
 
@@ -118,34 +134,39 @@ pdf_file("create");
 while(! $mbox->end_of_file() )
 {
 
-	last if($email_count > $testlimit);
+	# last if($email_count > $testlimit);
 
 	logging("VERBOSE", "Start Parsing Email '$email_count'");
 
 	# Fetch Email Content
 	my $content = $mbox->read_next_email();
 	
-	# Check Options for debugging
-	if($start > 0 && $end > 0 ) {
+	# Check Options (testlimit) for debugging
+	if($testlimit > 0) {
 
-		# skip processing
-		if($email_count >= $start && $email_count <= $end ) {
+		if($start > 0 && $end > 0 ) {
 		
-			logging("VERBOSE", "$start <= '$email_count' > $end");
+			# process
+			if($email_count >= $start && $email_count <= $end ) {
+
+				logging("VERBOSE", "$start <= '$email_count' > $end");
+			}
+			# skip processing
+			else {
+
+				logging("VERBOSE", "skip Email '$email_count' reached testlimit");
+				$email_count++;
+				next;
+			}
+
+			last if($email_count > $end);
 		}
 		else {
 
-			logging("VERBOSE", "Skip Email '$email_count'");
-			$email_count++;
-			next;
+			# stop processing
+			logging("VERBOSE", "Stop processing ..");
+			last if($email_count > $testlimit);
 		}
-	
-		last if($email_count > $end);
-	}
-	else {
-
-		# Stop processing
-		last if($email_count > $testlimit);
 	}
 
 	my $parser = new MIME::Parser;
@@ -272,12 +293,16 @@ sub handle_mime_body {
 sub pdf_file {
 	
 	my $task = shift;
-	my $filename = "/Users/markus/Desktop/feline_tagebuch.pdf";
+	my ( $filename ) = $mboxfile =~ /.*\/(.*)\.mbox/;
+	$filename = $path . $filename . ".pdf";
+	# my $filename = "/Users/markus/Desktop/feline_tagebuch.pdf";
 
 	# ---------------------------------------------------
 	# Create PDF object
 	# ---------------------------------------------------
 	if($task eq "create") {
+
+		logging("DEBUG", "creating PDF '$filename'");
   		# initialize PDF
   		$pdf = PDF::Create->new('filename'     => $filename,
                                         'Author'       => 'Markus Monka',
@@ -325,6 +350,7 @@ sub pdf_add_email {
 	chomp($contenttype);
 
 	# Convert Date
+	# Fix Me
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
 	$date = sprintf("%s.%s.%s %s:%s", $day, $month, $year + 1900, $hh, $mm);
 
@@ -466,7 +492,7 @@ sub pdf_add_email {
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = "125x150";
+			$geometry = "250x300";
 			$tile = "2x2";
 			
 			$xpos = 10;
@@ -550,6 +576,10 @@ sub logging {
 		printf("%s: %s\n", $LEVEL, $msg);
 	} 
 	elsif ($verbose && ( $LEVEL eq "VERBOSE" || $LEVEL eq "INFO" ) )  {
+
+		printf("%s: %s\n", $LEVEL, $msg);
+	}
+	elsif ($LEVEL eq "ERROR") {
 
 		printf("%s: %s\n", $LEVEL, $msg);
 	} 
