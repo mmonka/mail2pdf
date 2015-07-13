@@ -380,8 +380,8 @@ sub pdf_add_email {
   	my $f1 = $pdf->font('BaseFont' => 'Times-Roman');
 	
 	# Mail Header Information 
-  	$page->stringc($f1, 12, 250, 753, "$email_count -> $date: '$from'");
-  	$page->stringc($f1, 12, 250, 740, "$subject");
+  	$page->string($f1, 12, 250, 753, "$email_count -> $date: '$from'");
+  	$page->string($f1, 12, 250, 740, "$subject");
 
 	# ----------------------------------------------------------------
 	# ContentText
