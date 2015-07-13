@@ -349,8 +349,6 @@ sub pdf_add_email {
 	chomp($date);
 	chomp($contenttype);
 	
-	logging("VERBOSE", "'$date' Email from '$from'");
-
 	# Convert Date
 	# Fix Me
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
@@ -358,7 +356,6 @@ sub pdf_add_email {
 
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
-	return 0;
 
 	# 72 DPI -> 595 x 842
 	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
