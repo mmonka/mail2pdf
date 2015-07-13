@@ -13,6 +13,7 @@ use MIME::Body;
 use PDF::Create;
 use Getopt::Long;
 use Encode;
+use utf8;
 
 # Image Manipulatin
 use Image::Magick;
@@ -343,11 +344,12 @@ sub pdf_add_email {
 	my $contenttype = $header->get("Content-Type");
 
 	# delete newlines
-	chomp($subject);
 	chomp($to);
 	chomp($from);
 	chomp($date);
 	chomp($contenttype);
+	
+	logging("VERBOSE", "'$date' Email from '$from'");
 
 	# Convert Date
 	# Fix Me
@@ -356,19 +358,7 @@ sub pdf_add_email {
 
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
-
-	# decode subject 
-	if(! $subject =~ /.*(utf-8|utf8).*/) {
-
-		my $decoded = decode_mimewords($subject);
-
-		# Fix encoding
-		$subject = $decoded;
-
-		logging("DEBUG", "Subject encoding is utf8 - '$subject'");
-	}
-
-	logging("VERBOSE", "Subject: '$subject'");
+	return 0;
 
 	# 72 DPI -> 595 x 842
 	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
@@ -379,9 +369,33 @@ sub pdf_add_email {
 	# Prepare a font
   	my $f1 = $pdf->font('BaseFont' => 'Times-Roman');
 	
-	# Mail Header Information 
-  	$page->string($f1, 12, 250, 753, "$email_count -> $date: '$from'");
-  	$page->string($f1, 12, 250, 740, "$subject");
+	# Mail Header Information
+  	$page->string($f1, 9, 1, 780, handle_text($page, $f1, "$date: '$from'") );
+	
+	# print subject
+	if($subject) {
+		
+		chomp($subject);
+ 
+		# decode subject 
+		if(! $subject =~ /.*(utf-8|utf8).*/) {
+
+			my $decoded = decode_mimewords($subject);
+
+			# Fix encoding
+			$subject = $decoded;
+
+			logging("DEBUG", "Subject encoding is utf8 - '$subject'");
+		}
+
+		$page->line(1, 770, 595, 770);
+		$page->string($f1, 9, 1, 760, handle_text($page, $f1, $subject) );
+	
+		logging("VERBOSE", "Subject: '$subject'");
+	}
+
+	# print line
+	$page->line(1, 750, 595, 750);
 
 	# ----------------------------------------------------------------
 	# ContentText
@@ -392,14 +406,21 @@ sub pdf_add_email {
 	foreach(@text) {
 
 		next if($_ eq "delete");
-		logging("VERBOSE", "Text: $_");	
-		$content = $content . decode_mimewords($_) . "\r\n";
+		
+		my $text = handle_text($page, $f1, $_);
+		
+		logging("VERBOSE", "Text: $text");	
+		$content = $content . decode_mimewords($text) . "\r\n";
 	}
 
 	if(length($content) > 0) {
 
-	  	$page->stringc($f1, 12, 250, 720, $content);
+	  	$page->string($f1, 9, 1, 720, $content);
 	}
+	
+	# print line
+	$page->line(1,700, 595, 700);
+
 	# --------------------------------------------------------
 	# TODO: check orientation of image
 	#       -> AUTO ROTATION
@@ -564,6 +585,29 @@ sub image_position {
 	return $xpos, $ypos;
 }
 
+# --------------------------------------------------------
+# handle_text  
+# --------------------------------------------------------
+sub handle_text {
+
+	my ($page, $font, $text) = @_;
+
+	# delete iPhone default footer
+	if($text =~ /.*meinem iPhone gesendet.*/ ) {
+
+		logging("VERBOSE", "Found iPhone default footer");
+		$text =~ s/Von meinem iPhone gesendet//g;
+	}
+
+	my $width = $page->string_width($font, $text);
+	logging("VERBOSE", "Width($width) -> '$text'");
+
+	# encoding magic
+	utf8::decode($text);
+
+	return $text;
+
+}
 # --------------------------------------------------------
 # Logging 
 # --------------------------------------------------------
