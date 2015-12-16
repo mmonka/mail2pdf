@@ -37,15 +37,17 @@ my $help;
 my $testlimit = 0;
 my $start = 0;
 my $end = 0;
-# Path to PDF File
-my $path = "/Users/markus/Desktop/";
 
 our @text;
 our @images;
 
-# Move to credential-file
-my $oauth_token = "";
-my $username = ""; # Gmail Emailadress
+# Include some vars from config.pl 
+my %config = do 'config.pl';
+
+my $username = $config{username} or die("missing username from config.pl");
+my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
+my $path = $config{path} or die("missing path from config.pl");
+my $filename = $config{filename} or die("missing filename");
 
 # --------------------------------------------------
 # Getopt definition
@@ -269,6 +271,8 @@ else {
 	print "Error: wrong type '$type'\n";
  	print "Please choose --type imap|mbox\n";
 }
+
+print "File was generated. Have fun\n";
 exit;
 
 # --------------------------------------
@@ -408,11 +412,9 @@ sub pdf_file {
 	
 	my $pdf  = shift;
 	my $task = shift;
-	
-	### FIXME: filename for imap
-	my $filename = "default";
-	( $filename ) = $mboxfile =~ /.*\/(.*)\.mbox/ if($mboxfile);
-	$filename = $path . $filename . ".pdf";
+
+	# Values are included in config.pl	
+	$filename = $path . $filename;
 	
 
 	# ---------------------------------------------------
@@ -462,6 +464,7 @@ sub pdf_add_email {
 	my $from = $header->get('From');
 	my $date = $header->get('Date');
 	my $contenttype = $header->get("Content-Type");
+	my $picspace = 719 - 10 ; # Includes subject and message text
 
 	# delete newlines
 	chomp($to);
@@ -487,9 +490,11 @@ sub pdf_add_email {
   	my $f1 = $pdf->font('BaseFont' => 'Times-Roman');
 	
 	# Mail Header Information
-  	$page->string($f1, 9, 1, 780, handle_text($page, $f1, "$date: '$from'") );
-	
+  	$page->string($f1, 9, 5, 820, handle_text($page, $f1, "$date: '$from'") );
+
+	# --------------------------------------	
 	# print subject
+	# --------------------------------------	
 	if($subject) {
 		
 		chomp($subject);
@@ -505,38 +510,47 @@ sub pdf_add_email {
 			logging("DEBUG", "Subject encoding is utf8 - '$subject'");
 		}
 
-		$page->line(1, 770, 595, 770);
-		$page->string($f1, 9, 1, 760, handle_text($page, $f1, $subject) );
+		$page->line(1, 800, 595, 800);
+		$page->string($f1, 9, 5, 780, handle_text($page, $f1, $subject) );
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
 
 	# print line
-	$page->line(1, 750, 595, 750);
+	$page->line(1, 760, 595, 760);
+
+	print Dumper \@text;
 
 	# ----------------------------------------------------------------
 	# ContentText
 	# ----------------------------------------------------------------
-	my $content = "";
+	if(@text > 0 ) {
 
-	# Get Text-Element and add to PDF
-	foreach(@text) {
+			my $content = "";
 
-		next if($_ eq "delete");
-		
-		my $text = handle_text($page, $f1, $_);
-		
-		logging("VERBOSE", "Text: $text");	
-		$content = $content . decode_mimewords($text) . "\r\n";
+			# Get Text-Element and add to PDF
+			foreach(@text) {
+
+			next if($_ eq "delete");
+
+			my $text = handle_text($page, $f1, $_);
+
+			logging("VERBOSE", "Text: $text");	
+			$content = $content . decode_mimewords($text) . "\r\n";
+			}
+
+			if(length($content) > 0) {
+
+			$page->string($f1, 9, 5, 740, $content);
+			}
+
+			# print line
+			$page->line(1,720, 595, 720);
 	}
-
-	if(length($content) > 0) {
-
-	  	$page->string($f1, 9, 1, 720, $content);
+	else {
+		# No Textarea, more space for Pictures. Add -10 for some room
+		$picspace = 759 - 10 ;
 	}
-	
-	# print line
-	$page->line(1,700, 595, 700);
 
 	# --------------------------------------------------------
 	# TODO: check orientation of image
@@ -551,7 +565,6 @@ sub pdf_add_email {
 	my $arrSize = @images;
 	my $file = "/tmp/123456789.jpg";
 	my $x;
-
 
 	# Image Position
 	my $xpos = 0;
@@ -572,6 +585,7 @@ sub pdf_add_email {
 		# --------------------------------------------------------
 		if($w < 500 && $h < 600) {
 
+			logging("VERBOSE", "do not resize the image");
 			$geometry = sprintf("%sx%s", $w, $h);
 		}
 		# --------------------------------------------------------
@@ -579,16 +593,17 @@ sub pdf_add_email {
 		# --------------------------------------------------------
 		else {
 
-			$geometry = "500x600";
+			$geometry = "550x" . $picspace;
 		}
+
 		$image->AutoOrient();
 		$image->Resize( geometry => $geometry );
 		$w = $image->Get("width");
 		$h = $image->Get("height");
 		$x = $image->Write($file);
 
-		$xpos = 10;
-		$ypos = 600 - $h;
+		$xpos = 5;
+		$ypos = $picspace - $h;
 	
 		logging("VERBOSE", "Position w '$w' h '$h' x '$xpos' y '$ypos'");
 	
@@ -617,40 +632,40 @@ sub pdf_add_email {
 			$geometry = "250x300";
 			$tile = "2x";
 
-			$xpos = 10;
-			$ypos = 100;
+			$xpos = 5;
+			$ypos = 200;
 		}
 		elsif($arrSize == 3) {
 
 			$geometry = "250x300";
 			$tile = "2x";
 			
-			$xpos = 10;
-			$ypos = 100;
+			$xpos = 5;
+			$ypos = 200;
 		}
 		elsif($arrSize == 4) {
 
 			$geometry = "250x300";
 			$tile = "2x2";
 			
-			$xpos = 10;
-			$ypos = 100;
+			$xpos = 5;
+			$ypos = 200;
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = "125x150";
+			$geometry = "190x240";
 			$tile = "3x2";
 			
-			$xpos = 10;
-			$ypos = 100;
+			$xpos = 5;
+			$ypos = 200;
 		}
 		elsif($arrSize == 6) {
 
 			$geometry = "125x150";
-			$tile = "3x2";
+			$tile = "2x3";
 			
-			$xpos = 10;
-			$ypos = 100;
+			$xpos = 5;
+			$ypos = 200;
 		}
 
 		# Image Montage
