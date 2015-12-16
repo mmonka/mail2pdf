@@ -12,6 +12,17 @@ Help:
 --type mbox|imap             choose whether you want to use a local mbox file or a remote imap account<br>
 --testlimit=Start(,End)      choose at which position you want to start to generate the pdf file<br>
 
+You need a config.pl file in your execute dir:
+
+----------------------------------------------------------------------
+# This is my config file
+
+mboxfile        => "mbox file",<br>
+filename        => "your filename",<br>
+path            => "your path",<br>
+oauth_token     => "yourtoken",<br>
+username        => '.......@gmail.com'<br>
+----------------------------------------------------------------------
 
 Libs:
 
