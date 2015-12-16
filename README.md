@@ -2,22 +2,37 @@ Idea is to have a diary for kids or whatever
 
 Download gmail mailbox via google takeout and convert mbox formated emails to pdfs
 
+Help:
+
+./mbox2pdf --options
+
+--mboxfile=FILE              choose mbox file
+--verbose                    enable verbose logging
+--debug                      enable debugging
+--type mbox|imap             choose whether you want to use a local mbox file or a remote imap account
+--testlimit=Start(,End)      choose at which position you want to start to generate the pdf file
+
+
 Libs:
 
-Data::Dumper
+use Data::Dumper;
 
-Mail::Mbox::MessageParser
+use Mail::IMAPClient;
+use Mail::Mbox::MessageParser;
 
-MIME::Parser
+use Date::Parse;
 
-MIME::Words qw(:all)
+use MIME::Parser;
+use MIME::Words qw(:all);
+use MIME::Body;
+use MIME::Base64;
 
-MIME::Body
+use PDF::Create;
+use Getopt::Long;
 
-PDF::Create
+use URI::Escape;
+use Encode;
+use utf8;
 
-Email::Simple
-
-Email::MIME
-
-Getopt::Long
+# Image Manipulatin
+use Image::Magick;
