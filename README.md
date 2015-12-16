@@ -14,7 +14,7 @@ Help:
 
 You need a config.pl file in your execute dir:
 
-# ----------------------------------------------------------------------
+# --------------------------------------------------
 # This is my config file
 
 mboxfile        => "mbox file",<br>
@@ -22,7 +22,7 @@ filename        => "your filename",<br>
 path            => "your path",<br>
 oauth_token     => "yourtoken",<br>
 username        => '.......@gmail.com'<br>
-# ----------------------------------------------------------------------
+# -------------------------------------------------
 
 Libs:
 
