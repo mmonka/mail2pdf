@@ -5,13 +5,21 @@ use lib '/Users/markus/perl5/lib/perl5/';
 use strict;
 use warnings;
 use Data::Dumper;
+
+use Mail::IMAPClient;
 use Mail::Mbox::MessageParser;
+
 use Date::Parse;
+
 use MIME::Parser;
 use MIME::Words qw(:all);
 use MIME::Body;
+use MIME::Base64;
+
 use PDF::Create;
 use Getopt::Long;
+
+use URI::Escape;
 use Encode;
 use utf8;
 
@@ -24,6 +32,7 @@ use Image::Magick;
 my $mboxfile;
 my $verbose;
 my $debug;
+my $type;
 my $help;
 my $testlimit = 0;
 my $start = 0;
@@ -34,29 +43,34 @@ my $path = "/Users/markus/Desktop/";
 our @text;
 our @images;
 
+# Move to credential-file
+my $oauth_token = "";
+my $username = ""; # Gmail Emailadress
+
 # --------------------------------------------------
 # Getopt definition
 # --------------------------------------------------
 GetOptions(	"mboxfile=s" => \$mboxfile, # string
     		"verbose" => \$verbose,
     		"debug" => \$debug,
-		"help" => \$help,
-		"testlimit=s" => \$testlimit, 
+            	"help" => \$help,
+            	"type=s" => \$type,
+            	"testlimit=s" => \$testlimit,
 	  ) # flag
 or die("Error in command line arguments\n");
 
 if($help) {
 
 	print "./mbox2pdf --options\n\n";
-	print "--mboxfile=FILE\n"; 
-	print "--verbose\n"; 
-	print "--debug\n";
-	print "--testlimit=Start(,End)\n"; 
+	print "--mboxfile=FILE              choose mbox file\n";
+	print "--verbose                    enable verbose logging\n";
+	print "--debug                      enable debugging\n";
+    	print "--type mbox|imap             choose whether you want to use a local mbox file or a remote imap account\n";
+	print "--testlimit=Start(,End)      choose at which position you want to start to generate the pdf file\n";
 	exit;
 }
 
-logging("VERBOSE", "Testlimit $testlimit");
-
+# Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
 
 	$start = $1;
@@ -72,128 +86,226 @@ if($testlimit =~ /([\d]+),([\d]+)/) {
 	logging("VERBOSE", "Testlimit between '$start' '$end'");
 }
 
-logging("Verbose", "Testlimit '$testlimit'") if($testlimit);
  
 MIME::Tools->debugging(1) if($debug);
 MIME::Tools->quiet(0) if($verbose);
 
-# --------------------------------------------------
-# Check file
-# --------------------------------------------------
-if (!check_mbox_file($mboxfile)) {
 
-	error("FATAL", "File '$mboxfile' does not fit");
-	exit;
-}
+if($type eq "mbox") {
+    
+	# --------------------------------------------------
+	# Check file
+	# --------------------------------------------------
+	if (!check_mbox_file($mboxfile)) {
 
-# --------------------------------------------------
-# new FileObjekt
-# --------------------------------------------------
-my $filehandle = new FileHandle($mboxfile);
-
-# Set up cache
-# Mail::Mbox::MessageParser::SETUP_CACHE(	{ 'file_name' => '/tmp/cache' } );
-
-# --------------------------------------------------
-# new MboxParser Objekt
-# --------------------------------------------------
-my $mbox = new Mail::Mbox::MessageParser( {
-		'file_name' => $mboxfile,
-		'file_handle' => $filehandle,
-		'enable_cache' => 0,
-		'enable_grep' => 1,
-		'debug' => $debug,
-		} );
-
-
-
-die $mbox unless ref $mbox;
-
-# --------------------------------------------------
-# Any newlines or such before the start of the first email
-# --------------------------------------------------
-my $prologue 	= $mbox->prologue;
-
-# --------------------------------------------------
-# value for logging
-# --------------------------------------------------
-my $email_count = 1;
-
-# --------------------------------------------------
-# PDF Vars
-# --------------------------------------------------
-my $pdf;
-
-# --------------------------------------------
-# create a pdf file / pdf object $pdf 
-# --------------------------------------------
-pdf_file("create");
-
-# --------------------------------------------------
-# This is the main loop. It's executed once for each email
-# --------------------------------------------------
-while(! $mbox->end_of_file() )
-{
-
-	# last if($email_count > $testlimit);
-
-	logging("VERBOSE", "Start Parsing Email '$email_count'");
-
-	# Fetch Email Content
-	my $content = $mbox->read_next_email();
-	
-	# Check Options (testlimit) for debugging
-	if($testlimit > 0) {
-
-		if($start > 0 && $end > 0 ) {
-		
-			# process
-			if($email_count >= $start && $email_count <= $end ) {
-
-				logging("VERBOSE", "$start <= '$email_count' > $end");
-			}
-			# skip processing
-			else {
-
-				logging("VERBOSE", "skip Email '$email_count' reached testlimit");
-				$email_count++;
-				next;
-			}
-
-			last if($email_count > $end);
-		}
-		else {
-
-			# stop processing
-			logging("VERBOSE", "Stop processing ..");
-			last if($email_count > $testlimit);
-		}
+		error("FATAL", "File '$mboxfile' does not fit");
+		exit;
 	}
 
-	my $parser = new MIME::Parser;
+	# --------------------------------------------------
+	# new FileObjekt
+	# --------------------------------------------------
+	my $filehandle = new FileHandle($mboxfile);
 
-	$parser->ignore_errors(0);
-	$parser->output_to_core(0);
+	# Set up cache
+	# Mail::Mbox::MessageParser::SETUP_CACHE(	{ 'file_name' => '/tmp/cache' } );
 
-    	### Tell it where to put things:
-    	$parser->output_under("/tmp");
+	# --------------------------------------------------
+	# new MboxParser Objekt
+	# --------------------------------------------------
+	my $mbox = new Mail::Mbox::MessageParser( {
+			'file_name' => $mboxfile,
+			'file_handle' => $filehandle,
+			'enable_cache' => 0,
+			'enable_grep' => 1,
+			'debug' => $debug,
+			} );
 
-	my $entity = $parser->parse_data($content);
-	my $header = $entity->head;
+	die $mbox unless ref $mbox;
 
-	# Sanity checks
-	next if ($header->get('From') =~ /facebook/);
+	# --------------------------------------------------
+	# Any newlines or such before the start of the first email
+	# --------------------------------------------------
+	my $prologue 	= $mbox->prologue;
 
-	my $error = ($@ || $parser->last_error);
-	
-	handle_mime_body($email_count,$entity);
-	pdf_add_email($header);
+	# --------------------------------------------------
+	# value for logging
+	# --------------------------------------------------
+	my $email_count = 1;
 
-	$email_count++;
+	# --------------------------------------------
+	# create a pdf file / pdf object $pdf 
+	# --------------------------------------------
+	my $pdf = pdf_file("", "create");
+
+	# --------------------------------------------------
+	# This is the main loop. It's executed once for each email
+	# --------------------------------------------------
+	while(! $mbox->end_of_file() )
+	{
+
+		# last if($email_count > $testlimit);
+
+		logging("VERBOSE", "Start Parsing Email '$email_count'");
+
+		# Fetch Email Content
+		my $content = $mbox->read_next_email();
+
+		# Check Options (testlimit) for debugging
+		if($testlimit > 0) {
+
+			if($start > 0 && $end > 0 ) {
+
+				# process
+				if($email_count >= $start && $email_count <= $end ) {
+
+					logging("VERBOSE", "$start <= '$email_count' > $end");
+				}
+				# skip processing
+				else {
+
+					logging("VERBOSE", "skip Email '$email_count' reached testlimit");
+					$email_count++;
+					next;
+				}
+
+				last if($email_count > $end);
+			}
+			else {
+
+				# stop processing
+				logging("VERBOSE", "Stop processing ..");
+				last if($email_count > $testlimit);
+			}
+		}
+
+		my $parser = new MIME::Parser;
+
+		$parser->ignore_errors(0);
+		$parser->output_to_core(0);
+
+		### Tell it where to put things:
+		$parser->output_under("/tmp");
+
+		my $entity = $parser->parse_data($content);
+		my $header = $entity->head;
+
+		# Sanity checks
+		next if ($header->get('From') =~ /facebook/);
+
+		my $error = ($@ || $parser->last_error);
+
+		handle_mime_body($email_count,$entity);
+		pdf_add_email($pdf, $header);
+
+		$email_count++;
+	}
+
+    pdf_file($pdf, "close");
 }
 
-pdf_file("close");
+elsif($type eq "imap") {
+    
+	logging("VERBOSE", "type: imap\n");
+   
+	# connect to imap server
+	my $imap = gmail($oauth_token, $username); 
+
+	my $folder = "Inbox";
+	$imap->exists($folder) or warn "$folder not found: $@\n";
+	my $msgcount = $imap->message_count($folder); 
+	defined($msgcount) or die "Could not message_count: $@\n";
+	print "msg count = ", $msgcount, "\n";
+	
+	$imap->select($folder) or warn "$folder not select: $@\n";
+	my @msgs = $imap->messages() or die "Could not messages: $@\n";
+
+	my $email_count = 1;
+
+	# --------------------------------------------
+	# create a pdf file / pdf object $pdf 
+	# --------------------------------------------
+	my $pdf = pdf_file("", "create");
+
+
+	my $i;
+	foreach $i (@msgs)
+	{
+	
+
+		handle_testlimit($i, $testlimit, $start, $end);	
+
+		logging("VERBOSE", "IMAP Message $i from $msgcount");
+	
+		my $content = $imap->message_string($i);
+		
+		my $parser = new MIME::Parser;
+
+                $parser->ignore_errors(0);
+                $parser->output_to_core(0);
+
+                ### Tell it where to put things:
+                $parser->output_under("/tmp");
+
+                my $entity = $parser->parse_data($content);
+                my $header = $entity->head;
+
+                # Sanity checks
+                next if ($header->get('From') =~ /facebook/);
+
+                my $error = ($@ || $parser->last_error);
+
+                handle_mime_body($email_count,$entity);
+                pdf_add_email($pdf, $header);
+
+		$email_count++;
+	}
+
+    	pdf_file($pdf, "close");
+	
+}
+else {
+   
+	print "Error: wrong type '$type'\n";
+ 	print "Please choose --type imap|mbox\n";
+}
 exit;
+
+# --------------------------------------
+# Handle Testlimit
+# --------------------------------------
+sub handle_testlimit {
+
+		my ($msg, $testlimit, $start, $end) = @_;
+
+		# Check Options (testlimit) for debugging
+		if($testlimit > 0) {
+
+			if($start > 0 && $end > 0 ) {
+
+				# process
+				if($msg >= $start && $msg <= $end ) {
+
+					logging("VERBOSE", "$start <= '$msg' > $end");
+				}
+				# skip processing
+				else {
+
+					logging("VERBOSE", "skip Email '$msg' reached testlimit");
+					$msg++;
+					next;
+				}
+
+				last if($msg > $end);
+			}
+			else {
+
+				# stop processing
+				logging("VERBOSE", "Stop processing ..");
+				last if($msg > $testlimit);
+			}
+		}
+}
 
 # --------------------------------------------------------
 # Handle Body  
@@ -293,16 +405,23 @@ sub handle_mime_body {
 # --------------------------------------------------------
 sub pdf_file {
 	
+	
+	my $pdf  = shift;
 	my $task = shift;
-	my ( $filename ) = $mboxfile =~ /.*\/(.*)\.mbox/;
+	
+	### FIXME: filename for imap
+	my $filename = "default";
+	( $filename ) = $mboxfile =~ /.*\/(.*)\.mbox/ if($mboxfile);
 	$filename = $path . $filename . ".pdf";
-	# my $filename = "/Users/markus/Desktop/feline_tagebuch.pdf";
+	
 
 	# ---------------------------------------------------
 	# Create PDF object
 	# ---------------------------------------------------
 	if($task eq "create") {
 
+		my $pdf;
+		
 		logging("DEBUG", "creating PDF '$filename'");
   		# initialize PDF
   		$pdf = PDF::Create->new('filename'     => $filename,
@@ -334,6 +453,7 @@ sub pdf_file {
 # --------------------------------------------------------
 sub pdf_add_email {
 
+	my $pdf		= shift;
 	my $header 	= shift;
 
 	# get email headers
@@ -655,3 +775,30 @@ sub error {
 
 	return 0;
 }
+
+# --------------------------------------------------------
+# gmail IMAP connection
+# --------------------------------------------------------
+sub gmail {
+    
+	my ($oaut_token, $username) = @_;
+
+	my $oauth_sign = encode_base64("user=". $username ."\1auth=Bearer ". $oauth_token ."\1\1", '');
+	# detail: https://developers.google.com/google-apps/gmail/xoauth2_protocol
+
+	my $imap = Mail::IMAPClient->new(
+			Server	=>	'imap.googlemail.com',
+			Port	=>	993,
+			Ssl		=> 1,
+			Uid		=> 1,
+			Debug		=> $debug,
+			) or die('Can\'t connect to imap server.');
+
+	# DIGEST-MD5
+	$imap->authenticate('XOAUTH2', sub { return $oauth_sign } ) or die("Auth error (hm ..): ". $imap->LastError);
+
+	return $imap;
+
+
+}
+
