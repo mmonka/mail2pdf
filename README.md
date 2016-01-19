@@ -1,6 +1,7 @@
 Idea is to have a diary for kids or whatever
 
 Download gmail mailbox via google takeout and convert mbox formated emails to pdfs
+or connect directly to gmail via imaps/oauth2.
 
 Help:
 
