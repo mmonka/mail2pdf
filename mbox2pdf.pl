@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-use lib '/Users/markus/perl5/lib/perl5/';
-
 use strict;
 use warnings;
 use Data::Dumper;
@@ -42,12 +40,13 @@ our @text;
 our @images;
 
 # Include some vars from config.pl 
-my %config = do 'config.pl';
+my %config = do '/usr/src/mail2pdf/config.pl';
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
 my $path = $config{path} or die("missing path from config.pl");
 my $filename = $config{filename} or die("missing filename");
+my $s3mount = $config{s3mount};
 
 # --------------------------------------------------
 # Getopt definition
@@ -67,7 +66,7 @@ if($help) {
 	print "--mboxfile=FILE              choose mbox file\n";
 	print "--verbose                    enable verbose logging\n";
 	print "--debug                      enable debugging\n";
-    	print "--type mbox|imap             choose whether you want to use a local mbox file or a remote imap account\n";
+    	print "--type (mbox|imap|s3mount)       choose whether you want to use a local mbox file,a remote imap account or a directory with files per each email\n";
 	print "--testlimit=Start(,End)      choose at which position you want to start to generate the pdf file\n";
 	exit;
 }
@@ -264,7 +263,66 @@ elsif($type eq "imap") {
 	}
 
     	pdf_file($pdf, "close");
+}
+elsif($type eq "s3mount") {
+
+	logging("VERBOSE", "opening $s3mount. Looking for files");
+	opendir my $mount, $s3mount or die "Cannot open directory: $!";
+	my @files = readdir $mount;
+	closedir $mount;
+
+	# --------------------------------------------------
+	# value for logging
+	# --------------------------------------------------
+	my $email_count = 1;
+
+	# --------------------------------------------
+	# create a pdf file / pdf object $pdf 
+	# --------------------------------------------
+	my $pdf = pdf_file("", "create");
+
+	my $parser = new MIME::Parser;
+
+	$parser->ignore_errors(0);
+	$parser->output_to_core(0);
 	
+	### Tell it where to put things:
+	$parser->output_under("/tmp");
+	
+	foreach(@files){
+		if (-f $s3mount . "/" . $_ ){
+
+			logging("VERBOSE",  $_ . "   : file\n");
+			
+			# File
+			my $file = $s3mount . "/" . $_;
+
+			# Handler
+		        my $entity = $parser->parse_open($file);
+			my $header = $entity->head;
+
+			# Sanity checks
+			next if ($header->get('From') =~ /facebook/);
+
+			my $error = ($@ || $parser->last_error);
+
+			handle_mime_body($email_count,$entity);
+			pdf_add_email($pdf, $header);
+
+			$email_count++;
+
+		}elsif(-d $s3mount . "/" . $_){
+			logging("VERBOSE", $_ . "   : folder\n");
+			next;
+		}else{
+			logging("VERBOSE", $_ . "   : other\n");
+			next;
+		}
+	}
+
+
+    	pdf_file($pdf, "close");
+
 }
 else {
    
