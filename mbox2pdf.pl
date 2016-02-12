@@ -15,7 +15,9 @@ use MIME::Body;
 use MIME::Base64;
 
 use PDF::Create;
+use PDF::API2;
 use Getopt::Long;
+use Digest::MD5 qw(md5_hex); 
 
 use URI::Escape;
 use Encode;
@@ -31,10 +33,16 @@ my $mboxfile;
 my $verbose;
 my $debug;
 my $type;
+my $hash;
 my $help;
 my $testlimit = 0;
 my $start = 0;
 my $end = 0;
+my $tmp_dir_hash;
+
+use constant mm => 25.4 / 72;
+use constant in => 1 / 72;
+use constant pt => 1;
 
 our @text;
 our @images;
@@ -56,6 +64,9 @@ GetOptions(	"mboxfile=s" => \$mboxfile, # string
     		"debug" => \$debug,
             	"help" => \$help,
             	"type=s" => \$type,
+		"hash=s" => \$hash,
+		"filename=s" => \$filename,
+		"path=s" => \$path,
             	"testlimit=s" => \$testlimit,
 	  ) # flag
 or die("Error in command line arguments\n");
@@ -266,8 +277,10 @@ elsif($type eq "imap") {
 }
 elsif($type eq "s3mount") {
 
-	logging("VERBOSE", "opening $s3mount. Looking for files");
-	opendir my $mount, $s3mount or die "Cannot open directory: $!";
+	my $dir = sprintf("/mnt/s3/%s/", $hash);
+
+	logging("VERBOSE", "opening $dir. Looking for files");
+	opendir my $mount, $dir or die "Cannot open directory: '$!' ($dir)";
 	my @files = readdir $mount;
 	closedir $mount;
 
@@ -290,12 +303,12 @@ elsif($type eq "s3mount") {
 	$parser->output_under("/tmp");
 	
 	foreach(@files){
-		if (-f $s3mount . "/" . $_ ){
+		if (-f $dir . "/" . $_ ){
 
 			logging("VERBOSE",  $_ . "   : file\n");
 			
 			# File
-			my $file = $s3mount . "/" . $_;
+			my $file = $dir . "/" . $_;
 
 			# Handler
 		        my $entity = $parser->parse_open($file);
@@ -311,7 +324,7 @@ elsif($type eq "s3mount") {
 
 			$email_count++;
 
-		}elsif(-d $s3mount . "/" . $_){
+		}elsif(-d $dir . "/" . $_){
 			logging("VERBOSE", $_ . "   : folder\n");
 			next;
 		}else{
@@ -472,8 +485,7 @@ sub pdf_file {
 	my $task = shift;
 
 	# Values are included in config.pl	
-	$filename = $path . $filename;
-	
+	my $filename =  "/tmp/" . $filename;
 
 	# ---------------------------------------------------
 	# Create PDF object
@@ -481,19 +493,21 @@ sub pdf_file {
 	if($task eq "create") {
 
 		my $pdf;
-		
+
+		logging("VERBOSE", "create file '$filename'");
 		logging("DEBUG", "creating PDF '$filename'");
-  		# initialize PDF
-  		$pdf = PDF::Create->new('filename'     => $filename,
-                                        'Author'       => 'Markus Monka',
-                                        'Title'        => 'Feline Tagebuch',
-                                        'CreationDate' => [ localtime ], );
+		
+		$pdf = PDF::API2->new( -file => "$filename" );
 
 		return $pdf;
 	}
 	elsif($task eq "close") {
 
-		$pdf->close;
+		$pdf->save;
+		$pdf->end;
+
+		logging("VERBOSE", "Remove /tmp/" . $tmp_dir_hash);
+		rmdir "/tmp/".$tmp_dir_hash;
 
 	}
 	elsif($task eq "delete") {
@@ -538,17 +552,50 @@ sub pdf_add_email {
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
 
-	# 72 DPI -> 595 x 842
-	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
+	# Add new Page 
+	my $page = $pdf->page;
 
-	# Add a page which inherits its attributes from $a4
-  	my $page = $a4->new_page;
- 
-	# Prepare a font
-  	my $f1 = $pdf->font('BaseFont' => 'Times-Roman');
-	
-	# Mail Header Information
-  	$page->string($f1, 9, 5, 820, handle_text($page, $f1, "$date: '$from'") );
+	$page->mediabox( 105 / mm, 148 / mm );
+	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
+	$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
+	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
+
+	my %font = (
+			Helvetica => {
+			Bold   => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'latin1' ),
+			Roman  => $pdf->corefont( 'Helvetica',         -encoding => 'latin1' ),
+			Italic => $pdf->corefont( 'Helvetica-Oblique', -encoding => 'latin1' ),
+			},
+			Times => {
+			Bold   => $pdf->corefont( 'Times-Bold',   -encoding => 'latin1' ),
+			Roman  => $pdf->corefont( 'Times',        -encoding => 'latin1' ),
+			Italic => $pdf->corefont( 'Times-Italic', -encoding => 'latin1' ),
+			},
+		   );
+
+	my $blue_box = $page->gfx;
+	$blue_box->fillcolor('darkblue');
+	$blue_box->rect( 5 / mm, 125 / mm, 95 / mm, 18 / mm );
+	$blue_box->fill;
+
+	my $red_line = $page->gfx;
+	$red_line->strokecolor('red');
+	$red_line->move( 5 / mm, 125 / mm );
+	$red_line->line( 100 / mm, 125 / mm );
+	$red_line->stroke;
+
+	my $headline_text = $page->text;
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, 18 / pt );
+	$headline_text->fillcolor('white');
+	$headline_text->translate( 5 / mm, 131 / mm );
+	$headline_text->text_right('$date: $from');
+
+	my $background = $page->gfx;
+	$background->strokecolor('lightgrey');
+	$background->circle( 20 / mm, 45 / mm, 45 / mm );
+	$background->circle( 18 / mm, 48 / mm, 43 / mm );
+	$background->circle( 19 / mm, 40 / mm, 46 / mm );
+	$background->stroke;
 
 	# --------------------------------------	
 	# print subject
@@ -568,14 +615,14 @@ sub pdf_add_email {
 			logging("DEBUG", "Subject encoding is utf8 - '$subject'");
 		}
 
-		$page->line(1, 800, 595, 800);
-		$page->string($f1, 9, 5, 780, handle_text($page, $f1, $subject) );
+		my $subject_text = $page->text;
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, 18 / pt );
+		$subject_text->fillcolor('white');
+		$subject_text->translate( 95 / mm, 131 / mm );
+		$subject_text->text_right($subject);
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
-
-	# print line
-	$page->line(1, 760, 595, 760);
 
 	print Dumper \@text;
 
@@ -589,21 +636,28 @@ sub pdf_add_email {
 			# Get Text-Element and add to PDF
 			foreach(@text) {
 
-			next if($_ eq "delete");
+				next if($_ eq "delete");
 
-			my $text = handle_text($page, $f1, $_);
+				my $text = handle_text($_);
 
-			logging("VERBOSE", "Text: $text");	
-			$content = $content . decode_mimewords($text) . "\r\n";
+				logging("VERBOSE", "Text: $text");	
+				$content = $content . decode_mimewords($text) . "\r\n";
 			}
 
 			if(length($content) > 0) {
 
-			$page->string($f1, 9, 5, 740, $content);
+				my $message_text = $page->text;
+				$message_text->font( $font{'Helvetica'}{'Bold'}, 18 / pt );
+				$message_text->fillcolor('white');
+				$message_text->translate( 95 / mm, 180 / mm );
+				$message_text->text_right($content);
 			}
 
-			# print line
-			$page->line(1,720, 595, 720);
+			my $red_line = $page->gfx;
+			$red_line->strokecolor('red');
+			$red_line->move( 5 / mm, 125 / mm );
+			$red_line->line( 120 / mm, 125 / mm );
+			$red_line->stroke;
 	}
 	else {
 		# No Textarea, more space for Pictures. Add -10 for some room
@@ -621,8 +675,15 @@ sub pdf_add_email {
 	# Set Pics to PDF	
 	# --------------------------------------------------------
 	my $arrSize = @images;
-	my $file = "/tmp/123456789.jpg";
+
+	$tmp_dir_hash = md5_hex( $subject );
+	mkdir "/tmp/" . $tmp_dir_hash;
+
+	my $file = "/tmp/" . $tmp_dir_hash . md5_hex($from.$date) . ".jpg";
 	my $x;
+
+	unlink($file);
+	unlink($image);
 
 	# Image Position
 	my $xpos = 0;
@@ -737,11 +798,23 @@ sub pdf_add_email {
 		return 0;
 	}
 
-	my $jpg = $pdf->image($file);
-	$page->image( 'image' => $jpg, 'xpos' => $xpos, 'ypos' => $ypos );
+	logging("VERBOSE", "File $file");
 
-	unlink($image);
-	unlink($file);
+	my $photo = $page->gfx;
+
+	if (-e $file) {
+
+		my $photo_file = $pdf->image_jpeg($file);
+		$photo->image( $photo_file, 54 / mm, 66 / mm, 41 / mm, 55 / mm );
+	}
+	else {
+
+		logging("WARING", "Unable to find image file: $!");
+	}
+	
+	# unlink($image);
+	# unlink($file);
+	
 	return 0;
 }
 
@@ -780,7 +853,7 @@ sub image_position {
 # --------------------------------------------------------
 sub handle_text {
 
-	my ($page, $font, $text) = @_;
+	my ($text) = @_;
 
 	# delete iPhone default footer
 	if($text =~ /.*meinem iPhone gesendet.*/ ) {
@@ -789,15 +862,12 @@ sub handle_text {
 		$text =~ s/Von meinem iPhone gesendet//g;
 	}
 
-	my $width = $page->string_width($font, $text);
-	logging("VERBOSE", "Width($width) -> '$text'");
-
 	# encoding magic
 	utf8::decode($text);
 
 	return $text;
-
 }
+
 # --------------------------------------------------------
 # Logging 
 # --------------------------------------------------------
