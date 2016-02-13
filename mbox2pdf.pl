@@ -40,9 +40,13 @@ my $start = 0;
 my $end = 0;
 my $tmp_dir_hash;
 
-use constant mm => 25.4 / 72;
-use constant in => 1 / 72;
-use constant pt => 1;
+use constant mm => 25.4 / 72;  # 25.4 mm in an inch, 72 points in an inch
+use constant in => 1 / 72;     # 72 points in an inch
+use constant pt => 1;          # 1 point
+use constant A4_x    => 210 / mm;        # x points in an A4 page ( 595.2755 )
+use constant A4_y    => 297 / mm;        # y points in an A4 page ( 841.8897 )
+use constant A6_x    => 105 / mm;        # x points in an A6 page ( 595.2755 )
+use constant A6_y    => 148 / mm;        # y points in an A6 page ( 841.8897 )
 
 our @text;
 our @images;
@@ -536,7 +540,7 @@ sub pdf_add_email {
 	my $from = $header->get('From');
 	my $date = $header->get('Date');
 	my $contenttype = $header->get("Content-Type");
-	my $picspace = 719 - 10 ; # Includes subject and message text
+      	my $picspace = 719 - 10 ; # Includes subject and message text
 
 	# delete newlines
 	chomp($to);
@@ -555,9 +559,10 @@ sub pdf_add_email {
 	# Add new Page 
 	my $page = $pdf->page;
 
-	$page->mediabox( 105 / mm, 148 / mm );
+	$page->mediabox( A6_x, A6_y );
+
 	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
-	$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
+	#$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
 	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
 
 	my %font = (
@@ -574,28 +579,19 @@ sub pdf_add_email {
 		   );
 
 	my $blue_box = $page->gfx;
-	$blue_box->fillcolor('darkblue');
-	$blue_box->rect( 5 / mm, 125 / mm, 95 / mm, 18 / mm );
+	$blue_box->fillcolor('orange');
+	$blue_box->rect( 20 * mm,            	# left
+			A6_y - (100 * mm),    	# bottom
+			A6_x - (40 * mm),       # width
+			160 * mm);              # height
 	$blue_box->fill;
 
-	my $red_line = $page->gfx;
-	$red_line->strokecolor('red');
-	$red_line->move( 5 / mm, 125 / mm );
-	$red_line->line( 100 / mm, 125 / mm );
-	$red_line->stroke;
-
 	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, 18 / pt );
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 	$headline_text->fillcolor('white');
-	$headline_text->translate( 5 / mm, 131 / mm );
-	$headline_text->text_right('$date: $from');
+	$headline_text->translate( 250 , A6_y - (40 * mm));
+	$headline_text->text_right($date. ": " . $from);
 
-	my $background = $page->gfx;
-	$background->strokecolor('lightgrey');
-	$background->circle( 20 / mm, 45 / mm, 45 / mm );
-	$background->circle( 18 / mm, 48 / mm, 43 / mm );
-	$background->circle( 19 / mm, 40 / mm, 46 / mm );
-	$background->stroke;
 
 	# --------------------------------------	
 	# print subject
@@ -616,15 +612,13 @@ sub pdf_add_email {
 		}
 
 		my $subject_text = $page->text;
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, 18 / pt );
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 		$subject_text->fillcolor('white');
-		$subject_text->translate( 95 / mm, 131 / mm );
-		$subject_text->text_right($subject);
+		$subject_text->translate( 250 , A6_y - (20 * mm) );
+		$subject_text->text_right("Subject: " . $subject);
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
-
-	print Dumper \@text;
 
 	# ----------------------------------------------------------------
 	# ContentText
@@ -647,22 +641,30 @@ sub pdf_add_email {
 			if(length($content) > 0) {
 
 				my $message_text = $page->text;
-				$message_text->font( $font{'Helvetica'}{'Bold'}, 18 / pt );
+				$message_text->font( $font{'Helvetica'}{'Bold'}, 6 / pt );
 				$message_text->fillcolor('white');
-				$message_text->translate( 95 / mm, 180 / mm );
+				$message_text->translate( 250 , A6_y - (60 * mm) );
 				$message_text->text_right($content);
 			}
 
-			my $red_line = $page->gfx;
-			$red_line->strokecolor('red');
-			$red_line->move( 5 / mm, 125 / mm );
-			$red_line->line( 120 / mm, 125 / mm );
-			$red_line->stroke;
 	}
 	else {
 		# No Textarea, more space for Pictures. Add -10 for some room
 		$picspace = 759 - 10 ;
 	}
+	
+	my $blue_line = $page->gfx;
+	$blue_line->strokecolor('blue');
+	$blue_line->move( 20 * mm , A6_y - (60 * mm) );
+	$blue_line->line( A6_x - (40 * mm) , A6_y - (60 * mm) + 20 * mm  );
+	$blue_line->stroke;
+
+	my $background = $page->gfx;
+	$background->strokecolor('lightgrey');
+	$background->circle( 20 / mm, 45 / mm, 45 / mm );
+	$background->circle( 18 / mm, 48 / mm, 43 / mm );
+	$background->circle( 19 / mm, 40 / mm, 46 / mm );
+	$background->stroke;
 
 	# --------------------------------------------------------
 	# TODO: check orientation of image
@@ -679,7 +681,7 @@ sub pdf_add_email {
 	$tmp_dir_hash = md5_hex( $subject );
 	mkdir "/tmp/" . $tmp_dir_hash;
 
-	my $file = "/tmp/" . $tmp_dir_hash . md5_hex($from.$date) . ".jpg";
+	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($from.$date) . ".jpg";
 	my $x;
 
 	unlink($file);
