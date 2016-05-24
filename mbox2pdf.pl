@@ -40,6 +40,7 @@ my $start = 0;
 my $end = 0;
 my $tmp_dir_hash;
 
+# Constant for Page size
 use constant mm => 25.4 / 72;  # 25.4 mm in an inch, 72 points in an inch
 use constant in => 1 / 72;     # 72 points in an inch
 use constant pt => 1;          # 1 point
@@ -48,11 +49,17 @@ use constant A4_y    => 297 / mm;        # y points in an A4 page ( 841.8897 )
 use constant A6_x    => 105 / mm;        # x points in an A6 page ( 595.2755 )
 use constant A6_y    => 148 / mm;        # y points in an A6 page ( 841.8897 )
 
+# Define Page size
+my $size_x = A6_x;
+my $size_y = A6_y;
+
+# some arrays
 our @text;
 our @images;
 
 # Include some vars from config.pl 
-my %config = do '/usr/src/mail2pdf/config.pl';
+my %config = do '/Users/markus/git/mbox2pdf/config.pl';
+
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
@@ -75,9 +82,9 @@ GetOptions(	"mboxfile=s" => \$mboxfile, # string
 	  ) # flag
 or die("Error in command line arguments\n");
 
-if($help) {
+if(!$type or $help) {
 
-	print "./mbox2pdf --options\n\n";
+	print "./mbox2pdf --help\n\n";
 	print "--mboxfile=FILE              choose mbox file\n";
 	print "--verbose                    enable verbose logging\n";
 	print "--debug                      enable debugging\n";
@@ -85,6 +92,8 @@ if($help) {
 	print "--testlimit=Start(,End)      choose at which position you want to start to generate the pdf file\n";
 	exit;
 }
+
+print Dumper \%config if($verbose);
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -489,7 +498,7 @@ sub pdf_file {
 	my $task = shift;
 
 	# Values are included in config.pl	
-	my $filename =  "/tmp/" . $filename;
+	my $filename =  $path . $filename;
 
 	# ---------------------------------------------------
 	# Create PDF object
@@ -540,7 +549,6 @@ sub pdf_add_email {
 	my $from = $header->get('From');
 	my $date = $header->get('Date');
 	my $contenttype = $header->get("Content-Type");
-      	my $picspace = 719 - 10 ; # Includes subject and message text
 
 	# delete newlines
 	chomp($to);
@@ -548,10 +556,12 @@ sub pdf_add_email {
 	chomp($date);
 	chomp($contenttype);
 	
+	logging("VERBOSE", "'$date' Email from '$from'");
 	# Convert Date
 	# Fix Me
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
-	$date = sprintf("%s.%s.%s %s:%s", $day, $month, $year + 1900, $hh, $mm);
+	$date = sprintf("%s.%s", $day, $month);
+	$year = $year + 1900;
 
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
@@ -559,8 +569,7 @@ sub pdf_add_email {
 	# Add new Page 
 	my $page = $pdf->page;
 
-	$page->mediabox( A6_x, A6_y );
-
+	$page->mediabox( $size_x, $size_y );
 	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
 	#$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
 	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
@@ -580,16 +589,24 @@ sub pdf_add_email {
 
 	my $blue_box = $page->gfx;
 	$blue_box->fillcolor('orange');
-	$blue_box->rect( 20 * mm,            	# left
-			A6_y - (100 * mm),    	# bottom
-			A6_x - (40 * mm),       # width
+	$blue_box->rect( 0 ,            	# left
+			$size_y - (100 * mm),    	# bottom
+			$size_x,       # width
 			160 * mm);              # height
 	$blue_box->fill;
+	
+	# Year
+	my $headline_year = $page->text;
+	$headline_year->font( $font{'Helvetica'}{'Bold'}, 16 / pt );
+	$headline_year->fillcolor('black');
+	$headline_year->translate( $size_x - 7  , $size_y - (40 * mm));
+	$headline_year->text_right($year);
 
+	# Date / From
 	my $headline_text = $page->text;
 	$headline_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 	$headline_text->fillcolor('white');
-	$headline_text->translate( 250 , A6_y - (40 * mm));
+	$headline_text->translate( $size_x - 50 , $size_y - (40 * mm));
 	$headline_text->text_right($date. ": " . $from);
 
 
@@ -614,7 +631,7 @@ sub pdf_add_email {
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 		$subject_text->fillcolor('white');
-		$subject_text->translate( 250 , A6_y - (20 * mm) );
+		$subject_text->translate( $size_x - 50  , $size_y - (20 * mm) );
 		$subject_text->text_right("Subject: " . $subject);
 	
 		logging("VERBOSE", "Subject: '$subject'");
@@ -643,22 +660,12 @@ sub pdf_add_email {
 				my $message_text = $page->text;
 				$message_text->font( $font{'Helvetica'}{'Bold'}, 6 / pt );
 				$message_text->fillcolor('white');
-				$message_text->translate( 250 , A6_y - (60 * mm) );
+				$message_text->translate( 250 , $size_y - (60 * mm) );
 				$message_text->text_right($content);
 			}
 
 	}
-	else {
-		# No Textarea, more space for Pictures. Add -10 for some room
-		$picspace = 759 - 10 ;
-	}
 	
-	my $blue_line = $page->gfx;
-	$blue_line->strokecolor('blue');
-	$blue_line->move( 20 * mm , A6_y - (60 * mm) );
-	$blue_line->line( A6_x - (40 * mm) , A6_y - (60 * mm) + 20 * mm  );
-	$blue_line->stroke;
-
 	my $background = $page->gfx;
 	$background->strokecolor('lightgrey');
 	$background->circle( 20 / mm, 45 / mm, 45 / mm );
@@ -672,9 +679,10 @@ sub pdf_add_email {
 	# --------------------------------------------------------
 	my $image = Image::Magick->new(magick=>'JPEG');
 	$image->set(verbose=>'true') if($verbose);
+	$image->set(compression=>'none');
 	
 	# --------------------------------------------------------
-	# Set Pics to PDF	
+	# Generate perfectly-balanced-photo-gallery	
 	# --------------------------------------------------------
 	my $arrSize = @images;
 
@@ -684,54 +692,65 @@ sub pdf_add_email {
 	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($from.$date) . ".jpg";
 	my $x;
 
-	unlink($file);
-	unlink($image);
-
+	# --------------------------------------------------------
 	# Image Position
+	# --------------------------------------------------------
 	my $xpos = 0;
 	my $ypos = 0;
+		
+	# --------------------------------------------------------
+	# Resize to fit under the info/mediabox
+	# thats why we sub 50 from size_y
+	# --------------------------------------------------------
+	my $geometry = sprintf("%sx%s", $size_x, $size_y - 50) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
 
-		my $geometry;
-		
 		# Image Size
 		$image->Read($images[0]);
+		
 		my $w = $image->Get("width");
 		my $h = $image->Get("height");
-
-		# --------------------------------------------------------
-		# Do not resize, resolution is to small
-		# --------------------------------------------------------
-		if($w < 500 && $h < 600) {
-
-			logging("VERBOSE", "do not resize the image");
-			$geometry = sprintf("%sx%s", $w, $h);
-		}
-		# --------------------------------------------------------
-		# Resize resolution is large
-		# --------------------------------------------------------
-		else {
-
-			$geometry = "550x" . $picspace;
-		}
 
 		$image->AutoOrient();
 		$image->Resize( geometry => $geometry );
 		$w = $image->Get("width");
 		$h = $image->Get("height");
-		$x = $image->Write($file);
+		$x = $image->Write('jpg:'.$file);
 
-		$xpos = 5;
-		$ypos = $picspace - $h;
-	
-		logging("VERBOSE", "Position w '$w' h '$h' x '$xpos' y '$ypos'");
+		logging("VERBOSE", "Picture size  w '$w' h '$h', PDF Size $size_x $size_y");
 	
 	}
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
+		my $tile = "";
+
+		if($arrSize == 2) {
+
+			$tile = "1x2";
+
+		}
+		elsif($arrSize == 3) {
+
+			$tile = "2x";
+		}
+		elsif($arrSize == 4) {
+
+			$tile = "2x2";
+			
+		}
+		elsif($arrSize == 5) {
+
+			$tile = "3x2";
+			
+		}
+		elsif($arrSize == 6) {
+
+			$tile = "2x3";
+		}
+		
 		foreach(@images) {
 
 			if($_ =~ /PNG/) {
@@ -740,58 +759,18 @@ sub pdf_add_email {
 				next;
 			}
 			
-			logging("VERBOSE", "Read file '$_'");
+			logging("VERBOSE", "Prepair file '$_' .... ");
 			$image->Read($_);
-			$image->AutoOrient();
-		}
-
-		my $tile = "";
-		my $geometry = "100x100";
-
-		if($arrSize == 2) {
-
-			$geometry = "250x300";
-			$tile = "2x";
-
-			$xpos = 5;
-			$ypos = 200;
-		}
-		elsif($arrSize == 3) {
-
-			$geometry = "250x300";
-			$tile = "2x";
-			
-			$xpos = 5;
-			$ypos = 100;
-		}
-		elsif($arrSize == 4) {
-
-			$geometry = "250x300";
-			$tile = "2x2";
-			
-			$xpos = 5;
-			$ypos = 100;
-		}
-		elsif($arrSize == 5) {
-
-			$geometry = "190x240";
-			$tile = "3x2";
-			
-			$xpos = 5;
-			$ypos = 100;
-		}
-		elsif($arrSize == 6) {
-
-			$geometry = "125x150";
-			$tile = "2x3";
-			
-			$xpos = 5;
-			$ypos = 100;
+			my $w = $image->Get("width");
+			my $h = $image->Get("height");
+			logging("VERBOSE", "Picture size w '$w' h '$h'");
+			# $image->Resize($geometry);
 		}
 
 		# Image Montage
-		logging("VERBOSE", "!!!!!Multi Image Email -> Montage");
-		my $montage = $image->Montage(background => "white", borderwidth => "0", geometry => $geometry, tile => $tile);
+		logging("VERBOSE", "Multi Image Email -> Montage , Geometry: '$geometry' Tile: '$tile'");
+		$image->AutoOrient();
+		my $montage = $image->Montage(geometry => $geometry, tile => $tile );
 		$x = $montage->Write('jpg:'.$file);
 	}
 	else {
@@ -802,12 +781,14 @@ sub pdf_add_email {
 
 	logging("VERBOSE", "File $file");
 
+	# Add photo to pdf page
 	my $photo = $page->gfx;
 
+	# check, that file exists
 	if (-e $file) {
 
 		my $photo_file = $pdf->image_jpeg($file);
-		$photo->image( $photo_file, 54 / mm, 66 / mm, 41 / mm, 55 / mm );
+		$photo->image( $photo_file, 5, 5 );
 	}
 	else {
 
@@ -816,6 +797,9 @@ sub pdf_add_email {
 	
 	# unlink($image);
 	# unlink($file);
+
+	# To delete all the images but retain the Image::Magick object use
+	@$image = ();
 	
 	return 0;
 }
