@@ -47,7 +47,7 @@ use constant pt => 1;          # 1 point
 use constant A4_x    => 210 / mm;        # x points in an A4 page ( 595.2755 )
 use constant A4_y    => 297 / mm;        # y points in an A4 page ( 841.8897 )
 use constant A6_x    => 105 / mm;        # x points in an A6 page ( 595.2755 )
-use constant A6_y    => 148 / mm;        # y points in an A6 page ( 841.8897 )
+use constant A6_y    => 148 / mm;        # y points in an A6 page ( 419.53 )
 
 # Define Page size
 my $size_x = A6_x;
@@ -679,6 +679,7 @@ sub pdf_add_email {
 	# --------------------------------------------------------
 	my $image = Image::Magick->new(magick=>'JPEG');
 	$image->set(verbose=>'true') if($verbose);
+	$image->set(debug=>'true') if($debug);
 	$image->set(compression=>'none');
 	
 	# --------------------------------------------------------
@@ -728,26 +729,31 @@ sub pdf_add_email {
 		my $tile = "";
 
 		if($arrSize == 2) {
-
+		
+			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - (120 * mm));
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - (120 * mm));
 			$tile = "2x";
 		}
 		elsif($arrSize == 4) {
 
-			$tile = "2x2";
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - (120 * mm));
+			$tile = "x2";
 			
 		}
 		elsif($arrSize == 5) {
 
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
 			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6) {
 
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
 			$tile = "2x3";
 		}
 		
@@ -764,13 +770,13 @@ sub pdf_add_email {
 			my $w = $image->Get("width");
 			my $h = $image->Get("height");
 			logging("VERBOSE", "Picture size w '$w' h '$h'");
-			# $image->Resize($geometry);
 		}
 
 		# Image Montage
-		logging("VERBOSE", "Multi Image Email -> Montage , Geometry: '$geometry' Tile: '$tile'");
+		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
+		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry, tile => $tile );
+		my $montage = $image->Montage(geometry => $geometry, verbose => 'true');
 		$x = $montage->Write('jpg:'.$file);
 	}
 	else {
@@ -788,7 +794,7 @@ sub pdf_add_email {
 	if (-e $file) {
 
 		my $photo_file = $pdf->image_jpeg($file);
-		$photo->image( $photo_file, 5, 5 );
+		$photo->image( $photo_file, 5, 15 );
 	}
 	else {
 
