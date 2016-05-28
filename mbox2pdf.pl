@@ -6,17 +6,17 @@ use Data::Dumper;
 
 use Mail::IMAPClient;
 use Mail::Mbox::MessageParser;
-
-use Date::Parse;
-
 use MIME::Parser;
 use MIME::Words qw(:all);
 use MIME::Body;
 use MIME::Base64;
 
+use Date::Parse;
+use Getopt::Long;
+
 use PDF::Create;
 use PDF::API2;
-use Getopt::Long;
+
 use Digest::MD5 qw(md5_hex); 
 
 use URI::Escape;
@@ -221,7 +221,7 @@ if($type eq "mbox") {
 		my $error = ($@ || $parser->last_error);
 
 		handle_mime_body($email_count,$entity);
-		pdf_add_email($pdf, $header);
+		pdf_add_email($pdf, $header, $email_count);
 
 		$email_count++;
 	}
@@ -281,7 +281,7 @@ elsif($type eq "imap") {
                 my $error = ($@ || $parser->last_error);
 
                 handle_mime_body($email_count,$entity);
-                pdf_add_email($pdf, $header);
+                pdf_add_email($pdf, $header, $i);
 
 		$email_count++;
 	}
@@ -333,7 +333,7 @@ elsif($type eq "s3mount") {
 			my $error = ($@ || $parser->last_error);
 
 			handle_mime_body($email_count,$entity);
-			pdf_add_email($pdf, $header);
+			pdf_add_email($pdf, $header, $email_count);
 
 			$email_count++;
 
@@ -542,6 +542,7 @@ sub pdf_add_email {
 
 	my $pdf		= shift;
 	my $header 	= shift;
+	my $email_count = shift;
 
 	# get email headers
 	my $subject = $header->get('Subject');
@@ -594,6 +595,15 @@ sub pdf_add_email {
 			$size_x,       # width
 			160 * mm);              # height
 	$blue_box->fill;
+
+	if($verbose || $debug) {
+
+		my $headline_page_count = $page->text;
+		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, 16 / pt );
+		$headline_page_count->fillcolor('black');
+		$headline_page_count->translate( 7  , $size_y - (40 * mm));
+		$headline_page_count->text_center($email_count);
+	}
 	
 	# Year
 	my $headline_year = $page->text;
@@ -618,21 +628,21 @@ sub pdf_add_email {
 		chomp($subject);
  
 		# decode subject 
-		if(! $subject =~ /.*(utf-8|utf8).*/) {
+		if( $subject =~ /.*(utf-8|utf8).*/) {
 
 			my $decoded = decode_mimewords($subject);
 
 			# Fix encoding
 			$subject = $decoded;
 
-			logging("DEBUG", "Subject encoding is utf8 - '$subject'");
+			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 		$subject_text->fillcolor('white');
 		$subject_text->translate( $size_x - 50  , $size_y - (20 * mm) );
-		$subject_text->text_right($subject . " am " . $date);
+		$subject_text->text_right(decode("utf8", $subject) . " am " . $date);
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
@@ -692,6 +702,7 @@ sub pdf_add_email {
 
 	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($from.$date) . ".jpg";
 	my $x;
+	my $tile;
 
 	# --------------------------------------------------------
 	# Image Position
@@ -723,29 +734,27 @@ sub pdf_add_email {
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
-		my $tile = "";
-
 		if($arrSize == 2) {
 		
 			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - (120 * mm));
-			$tile = "2x";
+			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
 			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - (120 * mm));
-			$tile = "2x";
+			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
 
 			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - (120 * mm));
-			$tile = "2x";
+			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
-			$tile = "3x";
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - (120 * mm));
+			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6) {
@@ -772,13 +781,14 @@ sub pdf_add_email {
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry, verbose => 'true');
+		my $montage = $image->Montage(geometry => $geometry , tile => $tile  );
 		$x = $montage->Write('jpg:'.$file);
 		
 		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
 
 		# for calculate center position
 		$w = $size_x;
+		$h = $size_y;
 	}
 	else {
 
@@ -796,13 +806,12 @@ sub pdf_add_email {
 
 		# Calculate xi/y Position, so Image is "center"
 		my $position_x = int ( $size_x - $w ) / 2; 
-		my $position_y  = 5;
+		my $position_y = 5;		
 
-		if($h < ($size_y / 2) - (120 * mm)) {
-
-			$position_y = ($size_y - $h) / 2 - (120 * mm);
+		if($h < $size_y - (120 * mm) ) {
+			$position_y = ( ( $size_y - (120 * mm) ) - $h) / 2;
 		}
-		
+
 		my $photo_file = $pdf->image_jpeg($file);
 		logging("VERBOSE", "Write '$photo_file' to pdf x: '$position_x', y: '$position_y'");
 		$photo->image( $photo_file, $position_x, $position_y );
@@ -812,43 +821,10 @@ sub pdf_add_email {
 		logging("WARING", "Unable to find image file: $!");
 	}
 	
-	# unlink($image);
-	# unlink($file);
-
 	# To delete all the images but retain the Image::Magick object use
 	@$image = ();
 	
 	return 0;
-}
-
-# --------------------------------------------------------
-# Position of the image
-# Todo: BIN Packing 
-# 
-# 595x600 is for pics
-# 
-# --------------------------------------------------------
-sub image_position {
-
-	my ($arrSize, $count, $width, $height) = @_;
-
-	my $xpos = 35;
-	my $ypos = 200;
-
-	if($width > 595) {
-
-		$xpos = 0;
-	}
-	if($width > 600) {
-
-		$ypos = 0;
-	}
-
-	$xpos = $xpos + 200 if($count > 1);
-
-	logging("VERBOSE", "Image Position arrSize '$arrSize' count '$count' x '$xpos' y '$ypos'");
-
-	return $xpos, $ypos;
 }
 
 # --------------------------------------------------------
