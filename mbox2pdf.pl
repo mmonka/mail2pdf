@@ -602,12 +602,12 @@ sub pdf_add_email {
 	$headline_year->translate( $size_x - 7  , $size_y - (40 * mm));
 	$headline_year->text_right($year);
 
-	# Date / From
+	# From
 	my $headline_text = $page->text;
 	$headline_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 	$headline_text->fillcolor('white');
 	$headline_text->translate( $size_x - 50 , $size_y - (40 * mm));
-	$headline_text->text_right($date. ": " . $from);
+	$headline_text->text_right("von " . $from);
 
 
 	# --------------------------------------	
@@ -632,7 +632,7 @@ sub pdf_add_email {
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
 		$subject_text->fillcolor('white');
 		$subject_text->translate( $size_x - 50  , $size_y - (20 * mm) );
-		$subject_text->text_right("Subject: " . $subject);
+		$subject_text->text_right($subject . " am " . $date);
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
@@ -698,30 +698,27 @@ sub pdf_add_email {
 	# --------------------------------------------------------
 	my $xpos = 0;
 	my $ypos = 0;
-		
+	
+	my $w = 0;
+	my $h = 0;
+
 	# --------------------------------------------------------
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x, $size_y - 50) ;
+	my $geometry = sprintf("%sx%s", $size_x, $size_y - (120 * mm)) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
 
-		# Image Size
+		# Get Image
 		$image->Read($images[0]);
-		
-		my $w = $image->Get("width");
-		my $h = $image->Get("height");
-
 		$image->AutoOrient();
 		$image->Resize( geometry => $geometry );
 		$w = $image->Get("width");
 		$h = $image->Get("height");
 		$x = $image->Write('jpg:'.$file);
-
 		logging("VERBOSE", "Picture size  w '$w' h '$h', PDF Size $size_x $size_y");
-	
 	}
 	# Multi Image Email
 	elsif ($arrSize > 1) {
@@ -731,7 +728,7 @@ sub pdf_add_email {
 		if($arrSize == 2) {
 		
 			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - (120 * mm));
-			$tile = "1x2";
+			$tile = "2x";
 
 		}
 		elsif($arrSize == 3) {
@@ -742,19 +739,19 @@ sub pdf_add_email {
 		elsif($arrSize == 4) {
 
 			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - (120 * mm));
-			$tile = "x2";
+			$tile = "2x";
 			
 		}
 		elsif($arrSize == 5) {
 
 			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
-			$tile = "3x2";
+			$tile = "3x";
 			
 		}
 		elsif($arrSize == 6) {
 
 			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
-			$tile = "2x3";
+			$tile = "3x";
 		}
 		
 		foreach(@images) {
@@ -767,17 +764,21 @@ sub pdf_add_email {
 			
 			logging("VERBOSE", "Prepair file '$_' .... ");
 			$image->Read($_);
-			my $w = $image->Get("width");
-			my $h = $image->Get("height");
+			$w = $image->Get("width");
+			$h = $image->Get("height");
 			logging("VERBOSE", "Picture size w '$w' h '$h'");
 		}
 
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
-		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
 		$image->AutoOrient();
 		my $montage = $image->Montage(geometry => $geometry, verbose => 'true');
 		$x = $montage->Write('jpg:'.$file);
+		
+		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
+
+		# for calculate center position
+		$w = $size_x;
 	}
 	else {
 
@@ -793,8 +794,18 @@ sub pdf_add_email {
 	# check, that file exists
 	if (-e $file) {
 
+		# Calculate xi/y Position, so Image is "center"
+		my $position_x = int ( $size_x - $w ) / 2; 
+		my $position_y  = 5;
+
+		if($h < ($size_y / 2) - (120 * mm)) {
+
+			$position_y = ($size_y - $h) / 2 - (120 * mm);
+		}
+		
 		my $photo_file = $pdf->image_jpeg($file);
-		$photo->image( $photo_file, 5, 15 );
+		logging("VERBOSE", "Write '$photo_file' to pdf x: '$position_x', y: '$position_y'");
+		$photo->image( $photo_file, $position_x, $position_y );
 	}
 	else {
 
