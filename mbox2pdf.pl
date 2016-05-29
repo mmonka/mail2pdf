@@ -759,19 +759,19 @@ sub pdf_add_email {
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - (120 * mm));
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - $MEDIABOX_HEIGHT);
 			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - (120 * mm));
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - $MEDIABOX_HEIGHT);
 			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - $MEDIABOX_HEIGHT);
 			$tile = "3x";
 		}
 		
