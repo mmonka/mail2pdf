@@ -41,7 +41,7 @@ my $end = 0;
 my $tmp_dir_hash;
 
 # Constant for Page size
-use constant DPI => 72;
+use constant DPI => 300;
 use constant mm => 25.4 / DPI;  # 25.4 mm in an inch, 72 points in an inch
 use constant in => 1 / DPI;     # 72 points in an inch
 use constant pt => 1;           # 1 point
@@ -52,12 +52,12 @@ use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 use constant DENSITY => "300x300"; 		# DPI 
 
 # Define Page size
-my $size_x = A6_x;
-my $size_y = A6_y;
+my $size_x = A4_x;
+my $size_y = A4_y;
 
 # Mediabox size in Percent of Page
 my $MEDIABOX_BOTTOM = $size_y - ($size_y * 0.05);
-my $MEDIABOX_HEIGHT = ($size_y * 0.05);
+my $MEDIABOX_HEIGHT = ($size_y * 0.10);
 
 # some arrays
 our @text;
@@ -102,7 +102,7 @@ if(!$type or $help) {
 print Dumper \%config if($verbose);
 
 # Some Logging
-logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Mediabox: '$MEDIABOX_HEIGHT'");
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Mediabox: '$MEDIABOX_HEIGHT' DPI: '".DPI."'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -605,29 +605,27 @@ sub pdf_add_email {
 			$MEDIABOX_HEIGHT);      # height
 	$blue_box->fill;
 
-	logging("VERBOSE", "mm: " . mm . " bottom: " . $MEDIABOX_BOTTOM . " height: " . $MEDIABOX_HEIGHT);
-
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
-		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, 16 / pt );
+		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( 7  , $size_y - (40 * mm));
+		$headline_page_count->translate( 40  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
 		$headline_page_count->text_center($email_count);
 	}
 	
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Helvetica'}{'Bold'}, 16 / pt );
+	$headline_year->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - 7  , $size_y - (40 * mm));
+	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
 	$headline_year->text_right($year);
 
 	# From
 	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.10));
 	$headline_text->fillcolor('white');
-	$headline_text->translate( $size_x - 50 , $size_y - (40 * mm));
+	$headline_text->translate( $size_x - ($size_x * 0.20) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
 	$headline_text->text_right("von " . $from);
 
 
@@ -650,9 +648,9 @@ sub pdf_add_email {
 		}
 
 		my $subject_text = $page->text;
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.15) );
 		$subject_text->fillcolor('white');
-		$subject_text->translate( $size_x - 50  , $size_y - (20 * mm) );
+		$subject_text->translate( $size_x - ($size_x * 0.15)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
 		$subject_text->text_right(decode("utf8", $subject) . " am " . $date);
 	
 		logging("VERBOSE", "Subject: '$subject'");
