@@ -41,17 +41,23 @@ my $end = 0;
 my $tmp_dir_hash;
 
 # Constant for Page size
-use constant mm => 25.4 / 72;  # 25.4 mm in an inch, 72 points in an inch
-use constant in => 1 / 72;     # 72 points in an inch
-use constant pt => 1;          # 1 point
-use constant A4_x    => 210 / mm;        # x points in an A4 page ( 595.2755 )
-use constant A4_y    => 297 / mm;        # y points in an A4 page ( 841.8897 )
-use constant A6_x    => 105 / mm;        # x points in an A6 page ( 595.2755 )
-use constant A6_y    => 148 / mm;        # y points in an A6 page ( 419.53 )
+use constant DPI => 72;
+use constant mm => 25.4 / DPI;  # 25.4 mm in an inch, 72 points in an inch
+use constant in => 1 / DPI;     # 72 points in an inch
+use constant pt => 1;           # 1 point
+use constant A4_x => 210 / mm;        # x points in an A4 page ( 595.2755 )
+use constant A4_y => 297 / mm;        # y points in an A4 page ( 841.8897 )
+use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
+use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
+use constant DENSITY => "300x300"; 		# DPI 
 
 # Define Page size
 my $size_x = A6_x;
 my $size_y = A6_y;
+
+# Mediabox size in Percent of Page
+my $MEDIABOX_BOTTOM = $size_y - ($size_y * 0.05);
+my $MEDIABOX_HEIGHT = ($size_y * 0.05);
 
 # some arrays
 our @text;
@@ -94,6 +100,9 @@ if(!$type or $help) {
 }
 
 print Dumper \%config if($verbose);
+
+# Some Logging
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Mediabox: '$MEDIABOX_HEIGHT'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -591,10 +600,12 @@ sub pdf_add_email {
 	my $blue_box = $page->gfx;
 	$blue_box->fillcolor('orange');
 	$blue_box->rect( 0 ,            	# left
-			$size_y - (100 * mm),    	# bottom
-			$size_x,       # width
-			160 * mm);              # height
+			$MEDIABOX_BOTTOM,   # bottom
+			$size_x,       		# width
+			$MEDIABOX_HEIGHT);      # height
 	$blue_box->fill;
+
+	logging("VERBOSE", "mm: " . mm . " bottom: " . $MEDIABOX_BOTTOM . " height: " . $MEDIABOX_HEIGHT);
 
 	if($verbose || $debug) {
 
@@ -712,12 +723,13 @@ sub pdf_add_email {
 	
 	my $w = 0;
 	my $h = 0;
+	my $d = DENSITY;
 
 	# --------------------------------------------------------
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x, $size_y - (120 * mm)) ;
+	my $geometry = sprintf("%sx%s", $size_x, $size_y - $MEDIABOX_HEIGHT) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
@@ -725,24 +737,26 @@ sub pdf_add_email {
 		# Get Image
 		$image->Read($images[0]);
 		$image->AutoOrient();
-		$image->Resize( geometry => $geometry );
+		$image->Set(density => DENSITY);
+		$image->Resize( geometry => $geometry, density => DENSITY, compress => 'none' );
 		$w = $image->Get("width");
 		$h = $image->Get("height");
+		$d = $image->Get("density");
 		$x = $image->Write('jpg:'.$file);
-		logging("VERBOSE", "Picture size  w '$w' h '$h', PDF Size $size_x $size_y");
+		logging("VERBOSE", "Picture size  w '$w' h '$h' d '$d', PDF Size $size_x $size_y");
 	}
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - (120 * mm));
+			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - $MEDIABOX_HEIGHT);
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - (120 * mm));
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - $MEDIABOX_HEIGHT);
 			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
@@ -773,15 +787,17 @@ sub pdf_add_email {
 			
 			logging("VERBOSE", "Prepair file '$_' .... ");
 			$image->Read($_);
+			$image->Set(density => DENSITY);
 			$w = $image->Get("width");
 			$h = $image->Get("height");
-			logging("VERBOSE", "Picture size w '$w' h '$h'");
+			$d = $image->Get("density");
+			logging("VERBOSE", "Picture size w '$w' h '$h' d '$d'");
 		}
 
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry , tile => $tile  );
+		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none'  );
 		$x = $montage->Write('jpg:'.$file);
 		
 		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
