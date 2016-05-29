@@ -249,7 +249,7 @@ elsif($type eq "imap") {
 	$imap->exists($folder) or warn "$folder not found: $@\n";
 	my $msgcount = $imap->message_count($folder); 
 	defined($msgcount) or die "Could not message_count: $@\n";
-	print "msg count = ", $msgcount, "\n";
+	logging("VERBOSE", "msg count = '$msgcount'");
 	
 	$imap->select($folder) or warn "$folder not select: $@\n";
 	my @msgs = $imap->messages() or die "Could not messages: $@\n";
