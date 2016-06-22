@@ -14,7 +14,6 @@ use MIME::Words qw(:all);
 use MIME::Body;
 use MIME::Base64;
 
-use PDF::Create;
 use PDF::API2;
 use Getopt::Long;
 use Digest::MD5 qw(md5_hex); 
@@ -44,6 +43,8 @@ my $tmp_dir_hash;
 use constant mm => 25.4 / 72;  # 25.4 mm in an inch, 72 points in an inch
 use constant in => 1 / 72;     # 72 points in an inch
 use constant pt => 1;          # 1 point
+
+# Page Size 
 use constant A4_x    => 210 / mm;        # x points in an A4 page ( 595.2755 )
 use constant A4_y    => 297 / mm;        # y points in an A4 page ( 841.8897 )
 use constant A6_x    => 105 / mm;        # x points in an A6 page ( 595.2755 )
@@ -58,8 +59,7 @@ our @text;
 our @images;
 
 # Include some vars from config.pl 
-my %config = do '/Users/markus/git/mbox2pdf/config.pl';
-
+my %config = do '/Users/markus/git/mail2pdf/config.pl';
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
@@ -570,9 +570,9 @@ sub pdf_add_email {
 	my $page = $pdf->page;
 
 	$page->mediabox( $size_x, $size_y );
-	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
-	#$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
-	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
+	$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
+	$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
+	$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
 
 	my %font = (
 			Helvetica => {
