@@ -686,13 +686,6 @@ sub pdf_add_email {
 
 	}
 	
-	my $background = $page->gfx;
-	$background->strokecolor('lightgrey');
-	$background->circle( 20 / mm, 45 / mm, 45 / mm );
-	$background->circle( 18 / mm, 48 / mm, 43 / mm );
-	$background->circle( 19 / mm, 40 / mm, 46 / mm );
-	$background->stroke;
-
 	# --------------------------------------------------------
 	# TODO: check orientation of image
 	#       -> AUTO ROTATION
