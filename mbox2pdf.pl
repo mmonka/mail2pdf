@@ -6,16 +6,16 @@ use Data::Dumper;
 
 use Mail::IMAPClient;
 use Mail::Mbox::MessageParser;
-
-use Date::Parse;
-
 use MIME::Parser;
 use MIME::Words qw(:all);
 use MIME::Body;
 use MIME::Base64;
 
-use PDF::API2;
+use Date::Parse;
 use Getopt::Long;
+
+use PDF::API2;
+
 use Digest::MD5 qw(md5_hex); 
 
 use URI::Escape;
@@ -40,19 +40,26 @@ my $end = 0;
 my $tmp_dir_hash;
 
 # Constant for Page size
-use constant mm => 25.4 / 72;  # 25.4 mm in an inch, 72 points in an inch
-use constant in => 1 / 72;     # 72 points in an inch
-use constant pt => 1;          # 1 point
+use constant DPI => 300;
+use constant mm => 25.4 / DPI;  # 25.4 mm in an inch, 72 points in an inch
+use constant in => 1 / DPI;     # 72 points in an inch
+use constant pt => 1;           # 1 point
+use constant DENSITY => "300x300"; 		# DPI 
 
-# Page Size 
-use constant A4_x    => 210 / mm;        # x points in an A4 page ( 595.2755 )
-use constant A4_y    => 297 / mm;        # y points in an A4 page ( 841.8897 )
-use constant A6_x    => 105 / mm;        # x points in an A6 page ( 595.2755 )
-use constant A6_y    => 148 / mm;        # y points in an A6 page ( 419.53 )
+
+# Page Size
+use constant A4_x => 210 / mm;        # x points in an A4 page ( 595.2755 )
+use constant A4_y => 297 / mm;        # y points in an A4 page ( 841.8897 )
+use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
+use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 
 # Define Page size
-my $size_x = A6_x;
-my $size_y = A6_y;
+my $size_x = A4_x;
+my $size_y = A4_y;
+
+# Mediabox size in Percent of Page
+my $MEDIABOX_BOTTOM = $size_y - ($size_y * 0.05);
+my $MEDIABOX_HEIGHT = ($size_y * 0.10);
 
 # some arrays
 our @text;
@@ -94,6 +101,9 @@ if(!$type or $help) {
 }
 
 print Dumper \%config if($verbose);
+
+# Some Logging
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Mediabox: '$MEDIABOX_HEIGHT' DPI: '".DPI."'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -221,7 +231,7 @@ if($type eq "mbox") {
 		my $error = ($@ || $parser->last_error);
 
 		handle_mime_body($email_count,$entity);
-		pdf_add_email($pdf, $header);
+		pdf_add_email($pdf, $header, $email_count);
 
 		$email_count++;
 	}
@@ -240,7 +250,7 @@ elsif($type eq "imap") {
 	$imap->exists($folder) or warn "$folder not found: $@\n";
 	my $msgcount = $imap->message_count($folder); 
 	defined($msgcount) or die "Could not message_count: $@\n";
-	print "msg count = ", $msgcount, "\n";
+	logging("VERBOSE", "msg count = '$msgcount'");
 	
 	$imap->select($folder) or warn "$folder not select: $@\n";
 	my @msgs = $imap->messages() or die "Could not messages: $@\n";
@@ -281,7 +291,7 @@ elsif($type eq "imap") {
                 my $error = ($@ || $parser->last_error);
 
                 handle_mime_body($email_count,$entity);
-                pdf_add_email($pdf, $header);
+                pdf_add_email($pdf, $header, $i);
 
 		$email_count++;
 	}
@@ -333,7 +343,7 @@ elsif($type eq "s3mount") {
 			my $error = ($@ || $parser->last_error);
 
 			handle_mime_body($email_count,$entity);
-			pdf_add_email($pdf, $header);
+			pdf_add_email($pdf, $header, $email_count);
 
 			$email_count++;
 
@@ -542,6 +552,7 @@ sub pdf_add_email {
 
 	my $pdf		= shift;
 	my $header 	= shift;
+	my $email_count = shift;
 
 	# get email headers
 	my $subject = $header->get('Subject');
@@ -590,24 +601,33 @@ sub pdf_add_email {
 	my $blue_box = $page->gfx;
 	$blue_box->fillcolor('orange');
 	$blue_box->rect( 0 ,            	# left
-			$size_y - (100 * mm),    	# bottom
-			$size_x,       # width
-			160 * mm);              # height
+			$MEDIABOX_BOTTOM,   # bottom
+			$size_x,       		# width
+			$MEDIABOX_HEIGHT);      # height
 	$blue_box->fill;
+
+	if($verbose || $debug) {
+
+		my $headline_page_count = $page->text;
+		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
+		$headline_page_count->fillcolor('black');
+		$headline_page_count->translate( 40  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
+		$headline_page_count->text_center($email_count);
+	}
 	
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Helvetica'}{'Bold'}, 16 / pt );
+	$headline_year->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - 7  , $size_y - (40 * mm));
+	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
 	$headline_year->text_right($year);
 
-	# Date / From
+	# From
 	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.10));
 	$headline_text->fillcolor('white');
-	$headline_text->translate( $size_x - 50 , $size_y - (40 * mm));
-	$headline_text->text_right($date. ": " . $from);
+	$headline_text->translate( $size_x - ($size_x * 0.20) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
+	$headline_text->text_right("von " . $from);
 
 
 	# --------------------------------------	
@@ -618,21 +638,21 @@ sub pdf_add_email {
 		chomp($subject);
  
 		# decode subject 
-		if(! $subject =~ /.*(utf-8|utf8).*/) {
+		if( $subject =~ /.*(utf-8|utf8).*/) {
 
 			my $decoded = decode_mimewords($subject);
 
 			# Fix encoding
 			$subject = $decoded;
 
-			logging("DEBUG", "Subject encoding is utf8 - '$subject'");
+			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
 		my $subject_text = $page->text;
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, 8 / pt );
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.15) );
 		$subject_text->fillcolor('white');
-		$subject_text->translate( $size_x - 50  , $size_y - (20 * mm) );
-		$subject_text->text_right("Subject: " . $subject);
+		$subject_text->translate( $size_x - ($size_x * 0.15)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
+		$subject_text->text_right(decode("utf8", $subject) . " am " . $date);
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
@@ -692,69 +712,68 @@ sub pdf_add_email {
 
 	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($from.$date) . ".jpg";
 	my $x;
+	my $tile;
 
 	# --------------------------------------------------------
 	# Image Position
 	# --------------------------------------------------------
 	my $xpos = 0;
 	my $ypos = 0;
-		
+	
+	my $w = 0;
+	my $h = 0;
+	my $d = DENSITY;
+
 	# --------------------------------------------------------
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x, $size_y - 50) ;
+	my $geometry = sprintf("%sx%s", $size_x, $size_y - $MEDIABOX_HEIGHT) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
 
-		# Image Size
+		# Get Image
 		$image->Read($images[0]);
-		
-		my $w = $image->Get("width");
-		my $h = $image->Get("height");
-
 		$image->AutoOrient();
-		$image->Resize( geometry => $geometry );
+		$image->Set(density => DENSITY);
+		$image->Resize( geometry => $geometry, density => DENSITY, compress => 'none' );
 		$w = $image->Get("width");
 		$h = $image->Get("height");
+		$d = $image->Get("density");
 		$x = $image->Write('jpg:'.$file);
-
-		logging("VERBOSE", "Picture size  w '$w' h '$h', PDF Size $size_x $size_y");
-	
+		logging("VERBOSE", "Picture size  w '$w' h '$h' d '$d', PDF Size $size_x $size_y");
 	}
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
-		my $tile = "";
-
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - (120 * mm));
+			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - $MEDIABOX_HEIGHT);
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - (120 * mm));
-			$tile = "2x";
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - $MEDIABOX_HEIGHT);
+			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - (120 * mm));
-			$tile = "x2";
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - $MEDIABOX_HEIGHT);
+			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - $MEDIABOX_HEIGHT);
 			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - (120 * mm));
-			$tile = "2x3";
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - $MEDIABOX_HEIGHT);
+			$tile = "3x";
 		}
 		
 		foreach(@images) {
@@ -767,17 +786,24 @@ sub pdf_add_email {
 			
 			logging("VERBOSE", "Prepair file '$_' .... ");
 			$image->Read($_);
-			my $w = $image->Get("width");
-			my $h = $image->Get("height");
-			logging("VERBOSE", "Picture size w '$w' h '$h'");
+			$image->Set(density => DENSITY);
+			$w = $image->Get("width");
+			$h = $image->Get("height");
+			$d = $image->Get("density");
+			logging("VERBOSE", "Picture size w '$w' h '$h' d '$d'");
 		}
 
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
-		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry, verbose => 'true');
+		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none'  );
 		$x = $montage->Write('jpg:'.$file);
+		
+		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
+
+		# for calculate center position
+		$w = $size_x;
+		$h = $size_y;
 	}
 	else {
 
@@ -793,51 +819,27 @@ sub pdf_add_email {
 	# check, that file exists
 	if (-e $file) {
 
+		# Calculate xi/y Position, so Image is "center"
+		my $position_x = int ( $size_x - $w ) / 2; 
+		my $position_y = 5;		
+
+		if($h < $size_y - (120 * mm) ) {
+			$position_y = ( ( $size_y - (120 * mm) ) - $h) / 2;
+		}
+
 		my $photo_file = $pdf->image_jpeg($file);
-		$photo->image( $photo_file, 5, 15 );
+		logging("VERBOSE", "Write '$photo_file' to pdf x: '$position_x', y: '$position_y'");
+		$photo->image( $photo_file, $position_x, $position_y );
 	}
 	else {
 
 		logging("WARING", "Unable to find image file: $!");
 	}
 	
-	# unlink($image);
-	# unlink($file);
-
 	# To delete all the images but retain the Image::Magick object use
 	@$image = ();
 	
 	return 0;
-}
-
-# --------------------------------------------------------
-# Position of the image
-# Todo: BIN Packing 
-# 
-# 595x600 is for pics
-# 
-# --------------------------------------------------------
-sub image_position {
-
-	my ($arrSize, $count, $width, $height) = @_;
-
-	my $xpos = 35;
-	my $ypos = 200;
-
-	if($width > 595) {
-
-		$xpos = 0;
-	}
-	if($width > 600) {
-
-		$ypos = 0;
-	}
-
-	$xpos = $xpos + 200 if($count > 1);
-
-	logging("VERBOSE", "Image Position arrSize '$arrSize' count '$count' x '$xpos' y '$ypos'");
-
-	return $xpos, $ypos;
 }
 
 # --------------------------------------------------------
