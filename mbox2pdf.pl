@@ -54,8 +54,8 @@ use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
 use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 
 # Define Page size
-my $size_x = A4_x;
-my $size_y = A4_y;
+my $size_x = A6_x;
+my $size_y = A6_y;
 
 # Mediabox size in Percent of Page
 my $MEDIABOX_BOTTOM = $size_y - ($size_y * 0.05);
@@ -581,9 +581,9 @@ sub pdf_add_email {
 	my $page = $pdf->page;
 
 	$page->mediabox( $size_x, $size_y );
-	$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
-	$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
-	$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
+	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
+	#$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
+	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
 
 	my %font = (
 			Helvetica => {
@@ -716,7 +716,7 @@ sub pdf_add_email {
 	my $w = 0;
 	my $h = 0;
 	my $d = DENSITY;
-
+ 
 	# --------------------------------------------------------
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
@@ -729,13 +729,26 @@ sub pdf_add_email {
 		# Get Image
 		$image->Read($images[0]);
 		$image->AutoOrient();
-		$image->Set(density => DENSITY);
-		$image->Resize( geometry => $geometry, density => DENSITY, compress => 'none' );
+		
 		$w = $image->Get("width");
 		$h = $image->Get("height");
-		$d = $image->Get("density");
+
+		$image->Set(density => DENSITY);
+
+		if( $w > $size_x || $h > $size_y ) {
+	
+
+			logging("VERBOSE", "resize PIC cause width is greater then $size_x");
+			$image->Resize( geometry => $geometry, compress => 'none' );
+		}
+
+		# Resized values
+		$w = $image->Get("width");
+		$h = $image->Get("height");
+		
 		$x = $image->Write('jpg:'.$file);
 		logging("VERBOSE", "Picture size  w '$w' h '$h' d '$d', PDF Size $size_x $size_y");
+
 	}
 	# Multi Image Email
 	elsif ($arrSize > 1) {
@@ -816,12 +829,18 @@ sub pdf_add_email {
 		my $position_x = int ( $size_x - $w ) / 2; 
 		my $position_y = 5;		
 
-		if($h < $size_y - (120 * mm) ) {
-			$position_y = ( ( $size_y - (120 * mm) ) - $h) / 2;
+		# Space for PIC(s)
+		my $pic_space_y = int ($size_y - $MEDIABOX_HEIGHT);
+	
+		# calculate y position
+		if($h < $pic_space_y ) {
+
+			$position_y = int ( $pic_space_y - $h) / 2;
+			logging("VERBOSE", "Calculate new y position '$position_y' $pic_space_y");
 		}
 
 		my $photo_file = $pdf->image_jpeg($file);
-		logging("VERBOSE", "Write '$photo_file' to pdf x: '$position_x', y: '$position_y'");
+		logging("VERBOSE", "Write '$photo_file' size_x: '$size_x' size_y: '$size_y' w: '$w',h: '$h' to pdf x: '$position_x', y: '$position_y'");
 		$photo->image( $photo_file, $position_x, $position_y );
 	}
 	else {
@@ -831,7 +850,7 @@ sub pdf_add_email {
 	
 	# To delete all the images but retain the Image::Magick object use
 	@$image = ();
-	
+
 	return 0;
 }
 
