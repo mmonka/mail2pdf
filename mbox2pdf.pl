@@ -35,6 +35,7 @@ my $type;
 my $hash;
 my $help;
 my $testlimit = 0;
+my $onlyyear;
 my $start = 0;
 my $end = 0;
 my $tmp_dir_hash;
@@ -88,6 +89,7 @@ GetOptions(	"mboxfile=s" => \$mboxfile, # string
 		"filename=s" => \$filename,
 		"path=s" => \$path,
             	"testlimit=s" => \$testlimit,
+            	"onlyyear=i" => \$onlyyear,
 	  ) # flag
 or die("Error in command line arguments\n");
 
@@ -99,6 +101,7 @@ if(!$type or $help) {
 	print "--debug                      enable debugging\n";
     	print "--type (mbox|imap|s3mount)       choose whether you want to use a local mbox file,a remote imap account or a directory with files per each email\n";
 	print "--testlimit=Start(,End)      choose at which position you want to start to generate the pdf file\n";
+	print "--onlyyear=YEAR		    only print YEAR Content to PDF\n";
 	exit;
 }
 
@@ -575,6 +578,12 @@ sub pdf_add_email {
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
 	$date = sprintf("%s.%s", $day, $month);
 	$year = $year + 1900;
+
+	if($onlyyear && $onlyyear != $year) {
+
+		logging("VERBOSE", "option 'onlyyear' is active and we only add emails from $onlyyear to this PDF");
+		return 0;
+	}
 
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
