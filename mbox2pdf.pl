@@ -629,27 +629,31 @@ sub pdf_add_email {
 		$headline_page_count->text_center($email_count);
 	}
 	
+	# Time Information
+
 	# Year
 	my $headline_year = $page->text;
 	$headline_year->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 	$headline_year->fillcolor('black');
 	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
 	$headline_year->text_right($year);
-
-	# From
-	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.10));
-	$headline_text->fillcolor('black');
-	$headline_text->translate( $size_x - ($size_x * 0.20) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
-	$headline_text->text_right("von " . $from);
-
+	
 	# Date
-	# $size_y - ($MEDIABOX_HEIGHT * 0.3)
 	my $headline_date = $page->text;
 	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 	$headline_date->fillcolor('black');
 	$headline_date->translate( 60  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
 	$headline_date->text_center($date);
+
+	# From and Content
+
+	# From
+	my $headline_text = $page->text;
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.08));
+	$headline_text->fillcolor('black');
+	$headline_text->translate( $size_x - ($size_x * 0.40) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
+	$headline_text->text_right("Email von " . $from);
+
 
 	# --------------------------------------	
 	# print subject
@@ -672,7 +676,7 @@ sub pdf_add_email {
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.15) );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x - ($size_x * 0.15)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
+		$subject_text->translate( $size_x - ($size_x * 0.40)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
 		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
@@ -699,7 +703,7 @@ sub pdf_add_email {
 			if(length($content) > 0) {
 
 				my $message_text = $page->text;
-				$message_text->font( $font{'Helvetica'}{'Bold'}, 6 / pt );
+				$message_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.05) );
 				$message_text->fillcolor('white');
 				$message_text->translate( 250 , $size_y - (60 * mm) );
 				$message_text->text_right($content);
