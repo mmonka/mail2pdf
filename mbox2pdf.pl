@@ -57,6 +57,8 @@ use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 my $size_x = A6_x;
 my $size_y = A6_y;
 
+# Draw a Mediabox with Background, or just a line
+my $ADD_MEDIABOX    = undef;
 # Mediabox size in Percent of Page
 my $MEDIABOX_BOTTOM = $size_y - ($size_y * 0.05);
 my $MEDIABOX_HEIGHT = ($size_y * 0.10);
@@ -598,14 +600,26 @@ sub pdf_add_email {
 			},
 		   );
 
-	my $blue_box = $page->gfx;
-	$blue_box->fillcolor('orange');
-	$blue_box->rect( 0 ,            	# left
-			$MEDIABOX_BOTTOM,   # bottom
-			$size_x,       		# width
-			$MEDIABOX_HEIGHT);      # height
-	$blue_box->fill;
+	# Make Box variable
+	if($ADD_MEDIABOX) {
 
+		my $blue_box = $page->gfx;
+		$blue_box->fillcolor('orange');
+		$blue_box->rect( 0 ,            	# left
+				$MEDIABOX_BOTTOM,   # bottom
+				$size_x,       		# width
+				$MEDIABOX_HEIGHT);      # height
+			$blue_box->fill;
+	} else {
+
+		my $line = $page->gfx;
+		$line->strokecolor('black');
+		$line->move( 0, $MEDIABOX_BOTTOM );
+		$line->line( $size_x, $MEDIABOX_BOTTOM );
+		$line->stroke;
+
+	}
+	
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
@@ -625,7 +639,7 @@ sub pdf_add_email {
 	# From
 	my $headline_text = $page->text;
 	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.10));
-	$headline_text->fillcolor('white');
+	$headline_text->fillcolor('black');
 	$headline_text->translate( $size_x - ($size_x * 0.20) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
 	$headline_text->text_right("von " . $from);
 
@@ -650,7 +664,7 @@ sub pdf_add_email {
 
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.15) );
-		$subject_text->fillcolor('white');
+		$subject_text->fillcolor('black');
 		$subject_text->translate( $size_x - ($size_x * 0.15)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
 		$subject_text->text_right(decode("utf8", $subject) . " am " . $date);
 	
