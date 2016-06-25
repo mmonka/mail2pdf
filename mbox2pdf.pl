@@ -648,7 +648,7 @@ sub pdf_add_email {
 	my $headline_date = $page->text;
 	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 	$headline_date->fillcolor('black');
-	$headline_date->translate( 40  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
+	$headline_date->translate( 60  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
 	$headline_date->text_center($date);
 
 	# --------------------------------------	
@@ -742,7 +742,7 @@ sub pdf_add_email {
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x, $size_y - $MEDIABOX_HEIGHT) ;
+	my $geometry = sprintf("%sx%s", $size_x - 50, $size_y - $MEDIABOX_HEIGHT) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
