@@ -586,7 +586,7 @@ sub pdf_add_email {
 	}
 
 	# Logging
-	logging("VERBOSE", "'$date' Email from '$from'");
+	logging("VERBOSE", "'$date' ($day $month) Email from '$from'");
 
 	# Add new Page 
 	my $page = $pdf->page;
