@@ -625,7 +625,7 @@ sub pdf_add_email {
 		my $headline_page_count = $page->text;
 		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( 40  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
+		$headline_page_count->translate( 40  , $MEDIABOX_BOTTOM - ($MEDIABOX_HEIGHT * 0.3));
 		$headline_page_count->text_center($email_count);
 	}
 	
@@ -643,6 +643,13 @@ sub pdf_add_email {
 	$headline_text->translate( $size_x - ($size_x * 0.20) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
 	$headline_text->text_right("von " . $from);
 
+	# Date
+	# $size_y - ($MEDIABOX_HEIGHT * 0.3)
+	my $headline_date = $page->text;
+	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
+	$headline_date->fillcolor('black');
+	$headline_date->translate( 40  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
+	$headline_date->text_center($date);
 
 	# --------------------------------------	
 	# print subject
@@ -666,7 +673,7 @@ sub pdf_add_email {
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.15) );
 		$subject_text->fillcolor('black');
 		$subject_text->translate( $size_x - ($size_x * 0.15)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
-		$subject_text->text_right(decode("utf8", $subject) . " am " . $date);
+		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
