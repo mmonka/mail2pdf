@@ -248,57 +248,74 @@ elsif($type eq "imap") {
     
 	logging("VERBOSE", "type: imap\n");
    
-	# connect to imap server
+	# connect to google imap server
 	my $imap = gmail($oauth_token, $username); 
 
+	# choose label/folder
 	my $folder = "Inbox";
 	$imap->exists($folder) or warn "$folder not found: $@\n";
+
+	# select folder	
+	$imap->select($folder) or warn "$folder not select: $@\n";
+	
+	# how many messages are their?
 	my $msgcount = $imap->message_count($folder); 
 	defined($msgcount) or die "Could not message_count: $@\n";
 	logging("VERBOSE", "msg count = '$msgcount'");
 	
-	$imap->select($folder) or warn "$folder not select: $@\n";
-	my @msgs = $imap->messages() or die "Could not messages: $@\n";
-
-	my $email_count = 1;
-
 	# --------------------------------------------
 	# create a pdf file / pdf object $pdf 
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
 
+	# import messages
+	my @msgs = $imap->messages() or die "Could not messages: $@\n";
 
-	my $i;
-	foreach $i (@msgs)
+	# loop 
+	my $msg_cnt = 0;
+	foreach my $i (@msgs)
 	{
+		# increase email/message count
+		$msg_cnt++;
 	
+		logging("DEBUG", "IMAP Message $msg_cnt from $msgcount");
 
-		handle_testlimit($i, $testlimit, $start, $end);	
+		# if in testlimit mode, check, whether to add this email
+		# or not
+		my $res = handle_testlimit($msg_cnt, $testlimit, $start, $end);	
 
-		logging("VERBOSE", "IMAP Message $i from $msgcount");
-	
+		# if handle_testlimit skips email, go to next one
+		next if ($res == 0);
+
+		# get message content	
 		my $content = $imap->message_string($i);
 		
+		# start MIME Parser
 		my $parser = new MIME::Parser;
 
                 $parser->ignore_errors(0);
                 $parser->output_to_core(0);
 
-                ### Tell it where to put things:
+                # tell it where to put things
                 $parser->output_under("/tmp");
 
                 my $entity = $parser->parse_data($content);
                 my $header = $entity->head;
 
                 # Sanity checks
+		# e.g. if email from facebook -> ignore it
                 next if ($header->get('From') =~ /facebook/);
 
+		# if error, get it
                 my $error = ($@ || $parser->last_error);
 
-                handle_mime_body($email_count,$entity);
-                pdf_add_email($pdf, $header, $i);
+		# handle body
+                handle_mime_body($i,$entity);
 
-		$email_count++;
+		# add email to pdf
+                pdf_add_email($pdf, $header, $msg_cnt);
+
+
 	}
 
     	pdf_file($pdf, "close");
@@ -389,14 +406,14 @@ sub handle_testlimit {
 				# process
 				if($msg >= $start && $msg <= $end ) {
 
-					logging("VERBOSE", "$start <= '$msg' > $end");
+					logging("VERBOSE", "process email number '$msg'");
+					return 1;
 				}
 				# skip processing
 				else {
 
-					logging("VERBOSE", "skip Email '$msg' reached testlimit");
-					$msg++;
-					next;
+					logging("DEBUG", "skip email number '$msg'");
+					return 0;
 				}
 
 				last if($msg > $end);
@@ -405,9 +422,14 @@ sub handle_testlimit {
 
 				# stop processing
 				logging("VERBOSE", "Stop processing ..");
-				last if($msg > $testlimit);
+				
+				if($msg > $testlimit) {
+					return 0;
+				}
 			}
 		}
+		
+		return 0;
 }
 
 # --------------------------------------------------------
@@ -576,7 +598,7 @@ sub pdf_add_email {
 	# Convert Date
 	# Fix Me
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
-	$date = sprintf("%s.%s", $day, $month);
+	$date = sprintf("%i.%i", $day, $month);
 	$year = $year + 1900;
 
 	if($onlyyear && $onlyyear != $year) {
@@ -632,13 +654,13 @@ sub pdf_add_email {
 
 	}
 
-	# Debug/Verbose - Mode: print EmailNumber on Page	
+	# Debug/Verbose - Mode: print Email-Number on Page	
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
 		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( 40  , $INFOBOX_BOTTOM - ($INFOBOX_HEIGHT * 0.3));
+		$headline_page_count->translate( 50  , $INFOBOX_BOTTOM - ($INFOBOX_HEIGHT * 0.3));
 		$headline_page_count->text_center($email_count);
 	}
 	
