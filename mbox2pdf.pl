@@ -58,11 +58,11 @@ use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 my $size_x = A6_x;
 my $size_y = A6_y;
 
-# Draw a Mediabox with Background, or just a line
-my $ADD_MEDIABOX    = undef;
-# Mediabox size in Percent of Page
-my $MEDIABOX_BOTTOM = $size_y - ($size_y * 0.05);
-my $MEDIABOX_HEIGHT = ($size_y * 0.10);
+# Draw a Infobox with Background, or just a line
+my $ADD_INFOBOX    = undef;
+# Infobox size in Percent of Page
+my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
+my $INFOBOX_HEIGHT = ($size_y * 0.10);
 
 # some arrays
 our @text;
@@ -108,7 +108,7 @@ if(!$type or $help) {
 print Dumper \%config if($verbose);
 
 # Some Logging
-logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Mediabox: '$MEDIABOX_HEIGHT' DPI: '".DPI."'");
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Infobox: '$INFOBOX_HEIGHT' DPI: '".DPI."'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -609,32 +609,36 @@ sub pdf_add_email {
 			},
 		   );
 
-	# Make Box variable
-	if($ADD_MEDIABOX) {
+	# Make InfoBox variable
+	# Add a box with background color
+	if($ADD_INFOBOX) {
 
 		my $blue_box = $page->gfx;
 		$blue_box->fillcolor('orange');
 		$blue_box->rect( 0 ,            	# left
-				$MEDIABOX_BOTTOM,   # bottom
+				$INFOBOX_BOTTOM,   # bottom
 				$size_x,       		# width
-				$MEDIABOX_HEIGHT);      # height
+				$INFOBOX_HEIGHT);      # height
 			$blue_box->fill;
+
+	# or just space with a line
 	} else {
 
 		my $line = $page->gfx;
 		$line->strokecolor('black');
-		$line->move( 0, $MEDIABOX_BOTTOM );
-		$line->line( $size_x, $MEDIABOX_BOTTOM );
+		$line->move( 0, $INFOBOX_BOTTOM );
+		$line->line( $size_x, $INFOBOX_BOTTOM );
 		$line->stroke;
 
 	}
-	
+
+	# Debug/Verbose - Mode: print EmailNumber on Page	
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
-		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
+		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( 40  , $MEDIABOX_BOTTOM - ($MEDIABOX_HEIGHT * 0.3));
+		$headline_page_count->translate( 40  , $INFOBOX_BOTTOM - ($INFOBOX_HEIGHT * 0.3));
 		$headline_page_count->text_center($email_count);
 	}
 	
@@ -642,25 +646,25 @@ sub pdf_add_email {
 
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
+	$headline_year->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
+	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_year->text_right($year);
 	
 	# Date
 	my $headline_date = $page->text;
-	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.3));
+	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
 	$headline_date->fillcolor('black');
-	$headline_date->translate( 60  , $size_y - ($MEDIABOX_HEIGHT * 0.3));
+	$headline_date->translate( 60  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_date->text_center($date);
 
 	# From and Content
 
 	# From
 	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.08));
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.08));
 	$headline_text->fillcolor('black');
-	$headline_text->translate( $size_x - ($size_x * 0.40) , $size_y - ($MEDIABOX_HEIGHT * 0.15));
+	$headline_text->translate( $size_x - ($size_x * 0.40) , $size_y - ($INFOBOX_HEIGHT * 0.15));
 	$headline_text->text_right("Email von " . $from);
 
 
@@ -683,9 +687,9 @@ sub pdf_add_email {
 		}
 
 		my $subject_text = $page->text;
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.15) );
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.15) );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x - ($size_x * 0.40)  , $size_y - ($MEDIABOX_HEIGHT * 0.4) );
+		$subject_text->translate( $size_x - ($size_x * 0.40)  , $size_y - ($INFOBOX_HEIGHT * 0.4) );
 		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
@@ -712,7 +716,7 @@ sub pdf_add_email {
 			if(length($content) > 0) {
 
 				my $message_text = $page->text;
-				$message_text->font( $font{'Helvetica'}{'Bold'}, ($MEDIABOX_HEIGHT * 0.05) );
+				$message_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.05) );
 				$message_text->fillcolor('white');
 				$message_text->translate( 250 , $size_y - (60 * mm) );
 				$message_text->text_right($content);
@@ -755,7 +759,7 @@ sub pdf_add_email {
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x - 50, $size_y - $MEDIABOX_HEIGHT) ;
+	my $geometry = sprintf("%sx%s", $size_x - 50, $size_y - $INFOBOX_HEIGHT) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
@@ -789,30 +793,30 @@ sub pdf_add_email {
 
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - $MEDIABOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - $INFOBOX_HEIGHT);
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - $MEDIABOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - $INFOBOX_HEIGHT);
 			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - $MEDIABOX_HEIGHT);
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - $INFOBOX_HEIGHT);
 			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - $MEDIABOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - $INFOBOX_HEIGHT);
 			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - $MEDIABOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - $INFOBOX_HEIGHT);
 			$tile = "3x";
 		}
 		
@@ -864,7 +868,7 @@ sub pdf_add_email {
 		my $position_y = 5;		
 
 		# Space for PIC(s)
-		my $pic_space_y = int ($size_y - $MEDIABOX_HEIGHT);
+		my $pic_space_y = int ($size_y - $INFOBOX_HEIGHT);
 	
 		# calculate y position
 		if($h < $pic_space_y ) {
