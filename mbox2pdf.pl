@@ -55,8 +55,8 @@ use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
 use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 
 # Define Page size
-my $size_x = A6_x;
-my $size_y = A6_y;
+my $size_x = A4_x;
+my $size_y = A4_y;
 
 # Draw a Infobox with Background, or just a line
 my $ADD_INFOBOX    = undef;
@@ -123,7 +123,7 @@ if($testlimit =~ /([\d]+),([\d]+)/) {
 		logging("INFO", "End looks like an Offset. Recalculate end ($end)");
 	}	
 	
-	logging("VERBOSE", "Testlimit between '$start' '$end'");
+	logging("VERBOSE", "Testlimit between Message '$start' '$end'");
 }
 
  
@@ -399,7 +399,7 @@ sub handle_testlimit {
 		my ($msg, $testlimit, $start, $end) = @_;
 
 		# Check Options (testlimit) for debugging
-		if($testlimit > 0) {
+		if($testlimit > 0 ) {
 
 			if($start > 0 && $end > 0 ) {
 
@@ -421,7 +421,7 @@ sub handle_testlimit {
 			else {
 
 				# stop processing
-				logging("VERBOSE", "Stop processing ..");
+				logging("VERBOSE", "Stop processing .. '$msg > $testlimit' ");
 				
 				if($msg > $testlimit) {
 					return 0;
@@ -429,7 +429,7 @@ sub handle_testlimit {
 			}
 		}
 		
-		return 0;
+		return 1;
 }
 
 # --------------------------------------------------------
@@ -677,7 +677,7 @@ sub pdf_add_email {
 	my $headline_date = $page->text;
 	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
 	$headline_date->fillcolor('black');
-	$headline_date->translate( 60  , $size_y - ($INFOBOX_HEIGHT * 0.3));
+	$headline_date->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_date->text_center($date);
 
 	# From and Content
@@ -815,31 +815,41 @@ sub pdf_add_email {
 
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($size_y / 2) - $INFOBOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x , ($size_y - $INFOBOX_HEIGHT)  / 2 );
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y / 2) - $INFOBOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 2);
 			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y / 2) - $INFOBOX_HEIGHT);
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 2);
 			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 2) - $INFOBOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y - $INFOBOX_HEIGHT) / 2 );
 			$tile = "3x2";
 			
 		}
-		elsif($arrSize == 6) {
+		elsif($arrSize == 6 ) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y / 3) - $INFOBOX_HEIGHT);
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y - $INFOBOX_HEIGHT) / 3 );
 			$tile = "3x";
+		}
+		elsif($arrSize == 7 || $arrSize == 8) {
+
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 4 );
+			$tile = "2x";
+		}
+		elsif($arrSize == 9 || $arrSize == 10) {
+
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 5 );
+			$tile = "2x";
 		}
 		
 		foreach(@images) {
