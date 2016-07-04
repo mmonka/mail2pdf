@@ -280,6 +280,17 @@ elsif($type eq "imap") {
 	
 		logging("DEBUG", "IMAP Message $msg_cnt from $msgcount");
 
+		my $date = $imap->get_header($i, "Date");
+
+		my $res_hoy = handle_option_year($date);
+
+		# if onlyyear value is set and it does not match, ignore email
+		if($res_hoy == 0) {
+
+			logging("DEBUG", "handle_option_year: ignore email based on year ($onlyyear)");
+			next;
+		}
+
 		# if in testlimit mode, check, whether to add this email
 		# or not
 		my $res = handle_testlimit($msg_cnt, $testlimit, $start, $end);	
@@ -390,6 +401,25 @@ else {
 
 print "File was generated. Have fun\n";
 exit;
+
+# --------------------------------------
+# Handle year if option for a special
+# year is set 
+# --------------------------------------
+sub handle_option_year {
+
+	my $date = shift;
+
+	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
+	
+	if($onlyyear && $onlyyear != $year) {
+
+		logging("DEBUG", "option 'onlyyear' is active and we only add emails from $onlyyear to this PDF");
+		return 0;
+	}
+
+	return 1;
+}
 
 # --------------------------------------
 # Handle Testlimit
@@ -581,12 +611,23 @@ sub pdf_add_email {
 	my $header 	= shift;
 	my $email_count = shift;
 
-	# get email headers
+	# get date headers
+	my $date = $header->get('Date');
+
+	# Convert Date
+	# the year is the number of years since 1900, and the month is zero-based (0 = January)
+	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
+	$date = sprintf("%d.%d", $day, $month + 1);
+	$year = $year + 1900;
+
+
+	# get more headers
 	my $subject = $header->get('Subject');
 	my $to = $header->get('To');
 	my $from = $header->get('From');
-	my $date = $header->get('Date');
 	my $contenttype = $header->get("Content-Type");
+	
+	logging("VERBOSE", "'$date' Email from '$from'");
 
 	# delete newlines
 	chomp($to);
@@ -594,18 +635,6 @@ sub pdf_add_email {
 	chomp($date);
 	chomp($contenttype);
 	
-	logging("VERBOSE", "'$date' Email from '$from'");
-	# Convert Date
-	# Fix Me
-	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
-	$date = sprintf("%i.%i", $day, $month);
-	$year = $year + 1900;
-
-	if($onlyyear && $onlyyear != $year) {
-
-		logging("VERBOSE", "option 'onlyyear' is active and we only add emails from $onlyyear to this PDF");
-		return 0;
-	}
 
 	# Logging
 	logging("VERBOSE", "'$date' ($day $month) Email from '$from'");
