@@ -440,7 +440,7 @@ sub handle_testlimit {
 				# process
 				if($msg >= $start && $msg <= $end ) {
 
-					logging("VERBOSE", "process email number '$msg'");
+					logging("DEBUG", "testlimit ($start,$end) - process email number '$msg'");
 					return 1;
 				}
 				# skip processing
