@@ -279,24 +279,25 @@ elsif($type eq "imap") {
 		$msg_cnt++;
 	
 		logging("DEBUG", "IMAP Message $msg_cnt from $msgcount");
+		
+		# if in testlimit mode, check, whether to add this email
+		# or not
+		my $res = handle_testlimit($msg_cnt, $testlimit, $start, $end);	
+		
+		# if handle_testlimit skips email, go to next one
+		next if ($res == 0);
 
+		# if in onlyyear mode, check if email year match
 		my $date = $imap->get_header($i, "Date");
-
-		my $res_hoy = handle_option_year($date);
-
-		# if onlyyear value is set and it does not match, ignore email
+		
+		# return 0: ignore | return 1: match
+		my $res_hoy = handle_option_year($onlyyear, $date);
+		
 		if($res_hoy == 0) {
 
 			logging("DEBUG", "handle_option_year: ignore email based on year ($onlyyear)");
 			next;
 		}
-
-		# if in testlimit mode, check, whether to add this email
-		# or not
-		my $res = handle_testlimit($msg_cnt, $testlimit, $start, $end);	
-
-		# if handle_testlimit skips email, go to next one
-		next if ($res == 0);
 
 		# get message content	
 		my $content = $imap->message_string($i);
@@ -408,13 +409,16 @@ exit;
 # --------------------------------------
 sub handle_option_year {
 
-	my $date = shift;
+	my ($onlyyear, $date) = @_;
 
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
-	
-	if($onlyyear && $onlyyear != $year) {
 
-		logging("DEBUG", "option 'onlyyear' is active and we only add emails from $onlyyear to this PDF");
+	# Have to add offset 1900
+	$year = $year + 1900;
+	
+	if($onlyyear && $onlyyear != $year ) {
+
+		logging("DEBUG", "option 'onlyyear - $onlyyear' is active and this email is from $year - skip");
 		return 0;
 	}
 
@@ -442,7 +446,7 @@ sub handle_testlimit {
 				# skip processing
 				else {
 
-					logging("DEBUG", "skip email number '$msg'");
+					logging("DEBUG", "testlimit ($start,$end) - skip email number '$msg'");
 					return 0;
 				}
 
