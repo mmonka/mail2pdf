@@ -271,6 +271,12 @@ elsif($type eq "imap") {
 	# import messages
 	my @msgs = $imap->messages() or die "Could not messages: $@\n";
 
+	# generate a /tmp/ subdirectory .. 
+	$tmp_dir_hash = md5_hex( $imap . $pdf . $msgcount );
+	mkdir "/tmp/" . $tmp_dir_hash;
+
+	logging("VERBOSE", "create tmp sub dirctory /tmp/$tmp_dir_hash");
+
 	# loop 
 	my $msg_cnt = 0;
 	foreach my $i (@msgs)
@@ -591,7 +597,7 @@ sub pdf_file {
 		$pdf->end;
 
 		logging("VERBOSE", "Remove /tmp/" . $tmp_dir_hash);
-		rmdir "/tmp/".$tmp_dir_hash;
+		rmdir "/tmp/".$tmp_dir_hash or warn("Could not delete, not empty");
 
 	}
 	elsif($task eq "delete") {
@@ -793,10 +799,10 @@ sub pdf_add_email {
 	# --------------------------------------------------------
 	my $arrSize = @images;
 
-	$tmp_dir_hash = md5_hex( $subject );
-	mkdir "/tmp/" . $tmp_dir_hash;
+	
+	# this will be the montage file
+	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date) . ".jpg";
 
-	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($from.$date) . ".jpg";
 	my $x;
 	my $tile;
 
@@ -889,7 +895,7 @@ sub pdf_add_email {
 
 			if($_ =~ /PNG/) {
 
-				logging("VERBOSE", "skip PNG '$_'");
+				logging("INFO", "skip PNG '$_' Email '$email_count'");
 				next;
 			}
 			
@@ -950,7 +956,7 @@ sub pdf_add_email {
 
 		logging("WARING", "Unable to find image file: $!");
 	}
-	
+
 	# To delete all the images but retain the Image::Magick object use
 	@$image = ();
 
