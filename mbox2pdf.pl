@@ -38,7 +38,9 @@ my $testlimit = 0;
 my $onlyyear;
 my $start = 0;
 my $end = 0;
-my $tmp_dir_hash;
+
+# where to save tmp files
+our $tmp_dir_hash;
 
 # Constant for Page size
 use constant DPI => 300;
