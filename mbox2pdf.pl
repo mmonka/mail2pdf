@@ -69,7 +69,7 @@ our @text;
 our @images;
 
 # Include some vars from config.pl 
-my %config = do '/Users/markus/git/mail2pdf/config.pl';
+my %config = do '/usr/src/mail2pdf/config.pl';
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
