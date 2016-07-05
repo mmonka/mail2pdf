@@ -347,10 +347,15 @@ elsif($type eq "s3mount") {
 	my @files = readdir $mount;
 	closedir $mount;
 
+	# how many messages are their?
+	my $msgcount = @files; 
+	defined($msgcount) or die "Could not message_count: $@\n";
+	logging("VERBOSE", "msg count = '$msgcount'");
+	
 	# --------------------------------------------------
 	# value for logging
 	# --------------------------------------------------
-	my $email_count = 1;
+	my $msg_cnt = 0;
 
 	# --------------------------------------------
 	# create a pdf file / pdf object $pdf 
@@ -364,13 +369,26 @@ elsif($type eq "s3mount") {
 	
 	### Tell it where to put things:
 	$parser->output_under("/tmp");
-	
+
+	# walk through the array of files	
 	foreach(@files){
+
 		if (-f $dir . "/" . $_ ){
+
+	
+			# increase email/message count
+			$msg_cnt++;
+			
+			# if in testlimit mode, check, whether to add this email
+			# or not
+			my $res = handle_testlimit($msg_cnt, $testlimit, $start, $end);	
+
+			# if handle_testlimit skips email, go to next one
+			next if ($res == 0);
 
 			logging("VERBOSE",  $_ . "   : file\n");
 			
-			# File
+			# which file to work on, add dir to loop/foreach value
 			my $file = $dir . "/" . $_;
 
 			# Handler
@@ -382,15 +400,13 @@ elsif($type eq "s3mount") {
 
 			my $error = ($@ || $parser->last_error);
 
-			handle_mime_body($email_count,$entity);
-			pdf_add_email($pdf, $header, $email_count);
+			handle_mime_body($msg_cnt, $entity);
+			pdf_add_email($pdf, $header, $msg_cnt);
 
-			$email_count++;
-
-		}elsif(-d $dir . "/" . $_){
+		} elsif(-d $dir . "/" . $_){
 			logging("VERBOSE", $_ . "   : folder\n");
 			next;
-		}else{
+		} else{
 			logging("VERBOSE", $_ . "   : other\n");
 			next;
 		}
