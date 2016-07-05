@@ -364,6 +364,11 @@ elsif($type eq "s3mount") {
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
 
+	# generate a /tmp/ subdirectory .. 
+	$tmp_dir_hash = md5_hex( $mount . $pdf . $hash );
+	mkdir "/tmp/" . $tmp_dir_hash;
+	
+	# Parser Object
 	my $parser = new MIME::Parser;
 
 	$parser->ignore_errors(0);
@@ -817,7 +822,6 @@ sub pdf_add_email {
 	# --------------------------------------------------------
 	my $arrSize = @images;
 
-	
 	# this will be the montage file
 	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date) . ".jpg";
 
