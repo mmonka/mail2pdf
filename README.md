@@ -12,6 +12,7 @@ Help:
 --debug                      enable debugging<br>
 --type mbox|imap             choose whether you want to use a local mbox file or a remote imap account<br>
 --testlimit=Start(,End)      choose at which position you want to start to generate the pdf file<br>
+--onlyyear=YEAR              choose a special year
 
 You need a config.pl file in your execute dir:
 
