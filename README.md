@@ -34,6 +34,14 @@ username        => '.......@gmail.com'<br>
 )
 # -------------------------------------------------
 
+configure in developer console credintials for external use.
+download gmail-oauth-tools and execute:
+
+python oauth2.py --generate_oauth2_token --client_id=YOUR_CLIENT_ID --client_secret=YOUR_CLIENT_SECRET 
+
+use Access Token as oauth_token in config.pl
+
+# -------------------------------------------------
 Libs:
 
 use Data::Dumper;
