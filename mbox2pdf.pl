@@ -71,7 +71,7 @@ our @text;
 our @images;
 
 # Include some vars from config.pl 
-my %config = do '/usr/src/mail2pdf/config.pl';
+my %config = do '/Users/markus/git/mail2pdf/config.pl';
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
@@ -440,6 +440,7 @@ sub handle_option_year {
 
 	my ($onlyyear, $date) = @_;
 
+	# extract year from email date line (RFC822 format)
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
 
 	# Have to add offset 1900
@@ -674,8 +675,9 @@ sub pdf_add_email {
 
 	# Add new Page 
 	my $page = $pdf->page;
-
 	$page->mediabox( $size_x, $size_y );
+
+	# printting details
 	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
 	#$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
 	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
@@ -710,6 +712,7 @@ sub pdf_add_email {
 
 		my $line = $page->gfx;
 		$line->strokecolor('black');
+		$line->linewidth(5);
 		$line->move( 0, $INFOBOX_BOTTOM );
 		$line->line( $size_x, $INFOBOX_BOTTOM );
 		$line->stroke;
@@ -722,11 +725,29 @@ sub pdf_add_email {
 		my $headline_page_count = $page->text;
 		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( 50  , $INFOBOX_BOTTOM - ($INFOBOX_HEIGHT * 0.3));
+		$headline_page_count->translate( 150  , $INFOBOX_BOTTOM - ($INFOBOX_HEIGHT * 0.3));
 		$headline_page_count->text_center($email_count);
 	}
 	
-	# Time Information
+	# Headline Information
+
+	#
+	# Todo: calculate the position new/correct based on font size etc
+	#
+	
+	# Date
+	my $headline_date = $page->text;
+	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.2));
+	$headline_date->fillcolor('black');
+	$headline_date->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.3));
+	$headline_date->text_center($date);
+
+	# From
+	my $headline_text = $page->text;
+	$headline_text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
+	$headline_text->fillcolor('black');
+	$headline_text->translate( $size_x * 0.1 + ( length($from) * 15 ) , $size_y - ($INFOBOX_HEIGHT * 0.15));
+	$headline_text->text_right("Email von " . $from);
 
 	# Year
 	my $headline_year = $page->text;
@@ -734,23 +755,6 @@ sub pdf_add_email {
 	$headline_year->fillcolor('black');
 	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_year->text_right($year);
-	
-	# Date
-	my $headline_date = $page->text;
-	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
-	$headline_date->fillcolor('black');
-	$headline_date->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.3));
-	$headline_date->text_center($date);
-
-	# From and Content
-
-	# From
-	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.08));
-	$headline_text->fillcolor('black');
-	$headline_text->translate( $size_x - ($size_x * 0.40) , $size_y - ($INFOBOX_HEIGHT * 0.15));
-	$headline_text->text_right("Email von " . $from);
-
 
 	# --------------------------------------	
 	# print subject
@@ -773,7 +777,7 @@ sub pdf_add_email {
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.15) );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x - ($size_x * 0.40)  , $size_y - ($INFOBOX_HEIGHT * 0.4) );
+		$subject_text->translate( $size_x * 0.2 + ( length($subject) * 15 )  , $size_y - ($INFOBOX_HEIGHT * 0.4) );
 		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
@@ -792,17 +796,19 @@ sub pdf_add_email {
 				next if($_ eq "delete");
 
 				my $text = handle_text($_);
-
-				logging("VERBOSE", "Text: $text");	
-				$content = $content . decode_mimewords($text) . "\r\n";
+				
+				# check plain/text
+				$content = $content . $text . "\r\n";
 			}
+
+			logging("VERBOSE", "Text: $content");
 
 			if(length($content) > 0) {
 
 				my $message_text = $page->text;
-				$message_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.05) );
-				$message_text->fillcolor('white');
-				$message_text->translate( 250 , $size_y - (60 * mm) );
+				$message_text->font( $font{'Helvetica'}{'Bold'}, 30 / pt );
+				$message_text->fillcolor('black');
+				$message_text->translate( $size_x * 0.4 + ( length($content) * 15 ), $size_y - ($INFOBOX_HEIGHT * 0.4) );
 				$message_text->text_right($content);
 			}
 
@@ -933,7 +939,7 @@ sub pdf_add_email {
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none'  );
+		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none', border => 5,  bordercolor => 'grey');
 		$x = $montage->Write('jpg:'.$file);
 		
 		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
@@ -956,9 +962,9 @@ sub pdf_add_email {
 	# check, that file exists
 	if (-e $file) {
 
-		# Calculate xi/y Position, so Image is "center"
+		# Calculate x/y Position, so Image is "center"
 		my $position_x = int ( $size_x - $w ) / 2; 
-		my $position_y = 5;		
+		my $position_y = 20;		
 
 		# Space for PIC(s)
 		my $pic_space_y = int ($size_y - $INFOBOX_HEIGHT);
@@ -999,8 +1005,9 @@ sub handle_text {
 		$text =~ s/Von meinem iPhone gesendet//g;
 	}
 
-	# encoding magic
+	# encoding magic / result is 0 or 1
 	utf8::decode($text);
+	# decode_mimewords($test);	
 
 	return $text;
 }
