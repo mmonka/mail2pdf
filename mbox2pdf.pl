@@ -61,7 +61,7 @@ my $size_x = A4_x;
 my $size_y = A4_y;
 
 # Draw a Infobox with Background, or just a line
-my $ADD_INFOBOX    = undef;
+my $ADD_INFOBOX    = "true";
 # Infobox size in Percent of Page
 my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
 my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
@@ -703,7 +703,7 @@ sub pdf_add_email {
 				$INFOBOX_BOTTOM,   # bottom
 				$size_x,       		# width
 				$INFOBOX_HEIGHT);      # height
-			$blue_box->fill;
+		$blue_box->fill;
 
 	# or just space with a line
 	} else {
@@ -787,9 +787,21 @@ sub pdf_add_email {
 
 		# Todo: move to text_block
 		my $subject_text = $page->text;
+
+		my $size = "45/pt";
+		my $translate_x = "$size_x * 0.4 + ( length($subject) * 15 )";
+		my $translate_y = "$size_y - ( $INFOBOX_HEIGHT * 0.15 ) ";
+
+		# Message test is available 
+		if(@text > 0 ) {
+
+			$size = "25/pt";
+			$translate_y = "$size_y - ( $INFOBOX_HEIGHT * 0.30 ) ";
+		}
+
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, 25/pt );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x * 0.4 + ( length($subject) * 15 )  , $size_y - ( $INFOBOX_HEIGHT * 0.15 ) );
+		$subject_text->translate( $translate_x  , $translate_y );
 		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
@@ -823,7 +835,7 @@ sub pdf_add_email {
 				my $text = $page->text;
 				$text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
 				$text->fillcolor('black');
-				my ( $endw, $ypos, $paragraph ) = text_block(
+				my ( $endw, $y_pos, $paragraph ) = text_block(
 						$text,
 						$content,
 						-x        => $size_x * 0.1,
@@ -907,7 +919,7 @@ sub pdf_add_email {
 
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($size_y - $INFOBOX_HEIGHT)  / 2 );
+			$geometry = sprintf("%sx%s", $size_x , ($size_y - $INFOBOX_HEIGHT )  / 2 );
 			$tile = "1x2";
 
 		}
