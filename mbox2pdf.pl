@@ -661,8 +661,6 @@ sub pdf_add_email {
 	my $from = $header->get('From');
 	my $contenttype = $header->get("Content-Type");
 	
-	logging("VERBOSE", "'$date' Email from '$from'");
-
 	# delete newlines
 	chomp($to);
 	chomp($from);
@@ -671,7 +669,7 @@ sub pdf_add_email {
 	
 
 	# Logging
-	logging("VERBOSE", "'$date' ($day $month) Email from '$from'");
+	logging("VERBOSE", "'$date' Email from '$from'");
 
 	# Add new Page 
 	my $page = $pdf->page;
@@ -775,10 +773,26 @@ sub pdf_add_email {
 		}
 
 		my $subject_text = $page->text;
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.15) );
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, 6/pt );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x * 0.2 + ( length($subject) * 15 )  , $size_y - ($INFOBOX_HEIGHT * 0.4) );
-		$subject_text->text_right(decode("utf8", $subject));
+		my ( $endw, $ypos, $paragraph ) = text_block(
+				$subject_text,
+				$subject,
+				-x        => $size_x * 0.2,
+				-y        => $size_y - ($INFOBOX_HEIGHT * 0.4),
+				-w        => $size_x * 0.4,
+				-h        => $size_y - ($INFOBOX_HEIGHT * 0.2),
+				-lead     => 7/pt,
+				-parspace => 0/pt,
+				-align    => 'justify',
+				-hang     => "\xB7  ",
+				);
+
+		#my $subject_text = $page->text;
+		#$subject_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.15) );
+		#$subject_text->fillcolor('black');
+		#$subject_text->translate( $size_x * 0.2 + ( length($subject) * 15 )  , $size_y - ($INFOBOX_HEIGHT * 0.4) );
+		#$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
@@ -829,7 +843,7 @@ sub pdf_add_email {
 	my $arrSize = @images;
 
 	# this will be the montage file
-	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date) . ".jpg";
+	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date.$subject) . ".jpg";
 
 	my $x;
 	my $tile;
@@ -1010,6 +1024,177 @@ sub handle_text {
 	# decode_mimewords($test);	
 
 	return $text;
+}
+
+# --------------------------------------------------------
+# optimize setting the text/subject into a block  
+#
+# ($width_of_last_line, $ypos_of_last_line, $left_over_text) = text_block(
+#
+#    $text_handler_from_page,
+#    $text_to_place,
+#    -x        => $left_edge_of_block,
+#
+#    -y        => $baseline_of_first_line,
+#    -w        => $width_of_block,
+#
+#    -h        => $height_of_block,
+#   [-lead     => $font_size * 1.2 | $distance_between_lines,]
+#   [-parspace => 0 | $extra_distance_between_paragraphs,]
+#   [-align    => "left|right|center|justify|fulljustify",]
+#   [-hang     => $optional_hanging_indent,]
+#
+#);
+# --------------------------------------------------------
+sub text_block {
+
+    my $text_object = shift;
+    my $text        = shift;
+
+    my %arg = @_;
+
+    # Get the text in paragraphs
+    my @paragraphs = split( /\n/, $text );
+
+    # calculate width of all words
+    my $space_width = $text_object->advancewidth(' ');
+
+    my @words = split( /\s+/, $text );
+    my %width = ();
+    foreach (@words) {
+        next if exists $width{$_};
+        $width{$_} = $text_object->advancewidth($_);
+    }
+
+    my $endw;
+
+    my $ypos = $arg{'-y'};
+    my @paragraph = split( / /, shift(@paragraphs) );
+
+    my $first_line      = 1;
+    my $first_paragraph = 1;
+
+    # while we can add another line
+
+    while ( $ypos >= $arg{'-y'} - $arg{'-h'} + $arg{'-lead'} ) {
+
+        unless (@paragraph) {
+            last unless scalar @paragraphs;
+
+            @paragraph = split( / /, shift(@paragraphs) );
+
+            $ypos -= $arg{'-parspace'} if $arg{'-parspace'};
+            last unless $ypos >= $arg{'-y'} - $arg{'-h'};
+
+            $first_line      = 1;
+            $first_paragraph = 0;
+        }
+
+        my $xpos = $arg{'-x'};
+
+        # while there's room on the line, add another word
+        my @line = ();
+
+        my $line_width = 0;
+        if ( $first_line && exists $arg{'-hang'} ) {
+
+            my $hang_width = $text_object->advancewidth( $arg{'-hang'} );
+
+            $text_object->translate( $xpos, $ypos );
+            $text_object->text( $arg{'-hang'} );
+
+            $xpos       += $hang_width;
+            $line_width += $hang_width;
+            $arg{'-indent'} += $hang_width if $first_paragraph;
+
+        }
+        elsif ( $first_line && exists $arg{'-flindent'} ) {
+
+            $xpos       += $arg{'-flindent'};
+            $line_width += $arg{'-flindent'};
+
+        }
+        elsif ( $first_paragraph && exists $arg{'-fpindent'} ) {
+
+            $xpos       += $arg{'-fpindent'};
+            $line_width += $arg{'-fpindent'};
+
+        }
+        elsif ( exists $arg{'-indent'} ) {
+
+            $xpos       += $arg{'-indent'};
+            $line_width += $arg{'-indent'};
+
+        }
+
+        while ( @paragraph
+            and $line_width + ( scalar(@line) * $space_width ) +
+            $width{ $paragraph[0] } < $arg{'-w'} )
+        {
+
+            $line_width += $width{ $paragraph[0] };
+            push( @line, shift(@paragraph) );
+
+        }
+
+        # calculate the space width
+        my ( $wordspace, $align );
+        if ( $arg{'-align'} eq 'fulljustify'
+            or ( $arg{'-align'} eq 'justify' and @paragraph ) )
+        {
+
+            if ( scalar(@line) == 1 ) {
+                @line = split( //, $line[0] );
+
+            }
+            $wordspace = ( $arg{'-w'} - $line_width ) / ( scalar(@line) - 1 );
+
+            $align = 'justify';
+        }
+        else {
+            $align = ( $arg{'-align'} eq 'justify' ) ? 'left' : $arg{'-align'};
+
+            $wordspace = $space_width;
+        }
+        $line_width += $wordspace * ( scalar(@line) - 1 );
+
+        if ( $align eq 'justify' ) {
+            foreach my $word (@line) {
+
+                $text_object->translate( $xpos, $ypos );
+                $text_object->text($word);
+
+                $xpos += ( $width{$word} + $wordspace ) if (@line);
+
+            }
+            $endw = $arg{'-w'};
+        }
+        else {
+
+            # calculate the left hand position of the line
+            if ( $align eq 'right' ) {
+                $xpos += $arg{'-w'} - $line_width;
+
+            }
+            elsif ( $align eq 'center' ) {
+                $xpos += ( $arg{'-w'} / 2 ) - ( $line_width / 2 );
+
+            }
+
+            # render the line
+            $text_object->translate( $xpos, $ypos );
+
+            $endw = $text_object->text( join( ' ', @line ) );
+
+        }
+        $ypos -= $arg{'-lead'};
+        $first_line = 0;
+
+    }
+    unshift( @paragraphs, join( ' ', @paragraph ) ) if scalar(@paragraph);
+
+    return ( $endw, $ypos, join( "\n", @paragraphs ) )
+
 }
 
 # --------------------------------------------------------
