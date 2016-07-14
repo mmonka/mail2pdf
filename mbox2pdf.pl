@@ -741,11 +741,23 @@ sub pdf_add_email {
 	$headline_date->text_center($date);
 
 	# From
-	my $headline_text = $page->text;
-	$headline_text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
-	$headline_text->fillcolor('black');
-	$headline_text->translate( $size_x * 0.1 + ( length($from) * 15 ) , $size_y - ($INFOBOX_HEIGHT * 0.15));
-	$headline_text->text_right("Email von " . $from);
+	my $from_text = $page->text;
+	$from_text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
+	$from_text->fillcolor('black');
+	my ( $endw, $ypos, $paragraph ) = text_block(
+			$from_text,
+			$from,
+			-x        => $size_x * 0.1,
+			-y        => $size_y - ($INFOBOX_HEIGHT * 0.15),
+			-w        => $size_x * 0.6,
+			-h        => $size_y - ($INFOBOX_HEIGHT * 0.3),
+			-lead     => 15/pt * 1.2,
+			-parspace => 0/pt,
+			-align    => 'left',
+			-hang     => "",
+			);
+
+
 
 	# Year
 	my $headline_year = $page->text;
@@ -772,27 +784,12 @@ sub pdf_add_email {
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
-		my $subject_text = $page->text;
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, 6/pt );
-		$subject_text->fillcolor('black');
-		my ( $endw, $ypos, $paragraph ) = text_block(
-				$subject_text,
-				$subject,
-				-x        => $size_x * 0.2,
-				-y        => $size_y - ($INFOBOX_HEIGHT * 0.4),
-				-w        => $size_x * 0.4,
-				-h        => $size_y - ($INFOBOX_HEIGHT * 0.2),
-				-lead     => 7/pt,
-				-parspace => 0/pt,
-				-align    => 'justify',
-				-hang     => "\xB7  ",
-				);
 
-		#my $subject_text = $page->text;
-		#$subject_text->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.15) );
-		#$subject_text->fillcolor('black');
-		#$subject_text->translate( $size_x * 0.2 + ( length($subject) * 15 )  , $size_y - ($INFOBOX_HEIGHT * 0.4) );
-		#$subject_text->text_right(decode("utf8", $subject));
+		my $subject_text = $page->text;
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, 25/pt );
+		$subject_text->fillcolor('black');
+		$subject_text->translate( $size_x * 0.4 + ( length($subject) * 15 )  , $size_y - ($INFOBOX_HEIGHT * 0.15) );
+		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
@@ -812,18 +809,31 @@ sub pdf_add_email {
 				my $text = handle_text($_);
 				
 				# check plain/text
-				$content = $content . $text . "\r\n";
+				$content = $content . $text . " ";
 			}
 
 			logging("VERBOSE", "Text: $content");
 
 			if(length($content) > 0) {
 
-				my $message_text = $page->text;
-				$message_text->font( $font{'Helvetica'}{'Bold'}, 30 / pt );
-				$message_text->fillcolor('black');
-				$message_text->translate( $size_x * 0.4 + ( length($content) * 15 ), $size_y - ($INFOBOX_HEIGHT * 0.4) );
-				$message_text->text_right($content);
+		
+				logging("VERBOSE", "Text length: '" . length($content) . "'");
+	
+				my $text = $page->text;
+				$text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
+				$text->fillcolor('black');
+				my ( $endw, $ypos, $paragraph ) = text_block(
+						$text,
+						$content,
+						-x        => $size_x * 0.1,
+						-y        => $size_y - ($INFOBOX_HEIGHT * 0.30),
+						-w        => $size_x * 0.6,
+						-h        => $size_y - ($INFOBOX_HEIGHT * 0.05),
+						-lead     => 15/pt * 1.2,
+						-parspace => 0/pt,
+						-align    => 'left',
+						-hang     => "",
+						);
 			}
 
 	}
