@@ -744,7 +744,7 @@ sub pdf_add_email {
 	my $from_text = $page->text;
 	$from_text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
 	$from_text->fillcolor('black');
-	my ( $endw, $ypos, $paragraph ) = text_block(
+	my ( $endw, $y_pos, $paragraph ) = text_block(
 			$from_text,
 			$from,
 			-x        => $size_x * 0.1,
@@ -788,18 +788,20 @@ sub pdf_add_email {
 		# Todo: move to text_block
 		my $subject_text = $page->text;
 
-		my $size = "45/pt";
-		my $translate_x = "$size_x * 0.4 + ( length($subject) * 15 )";
-		my $translate_y = "$size_y - ( $INFOBOX_HEIGHT * 0.15 ) ";
+		# Make subject presenter, if no text is available
+		my $size = "60/pt";
+		my $translate_x = $size_x * 0.4 + ( length($subject) * 20 );
+		my $translate_y = $size_y - ( $INFOBOX_HEIGHT * 0.5 );
 
 		# Message test is available 
 		if(@text > 0 ) {
 
 			$size = "25/pt";
-			$translate_y = "$size_y - ( $INFOBOX_HEIGHT * 0.30 ) ";
+			$translate_x = $size_x * 0.4 + ( length($subject) * 15 );
+			$translate_y = $size_y - ( $INFOBOX_HEIGHT * 0.15 );
 		}
 
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, 25/pt );
+		$subject_text->font( $font{'Helvetica'}{'Bold'},$size );
 		$subject_text->fillcolor('black');
 		$subject_text->translate( $translate_x  , $translate_y );
 		$subject_text->text_right(decode("utf8", $subject));
