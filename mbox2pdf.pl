@@ -905,7 +905,7 @@ sub pdf_add_email {
 		}
 		elsif($arrSize == 6 ) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y - $INFOBOX_HEIGHT) / 3 );
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y - $INFOBOX_HEIGHT) / 2 );
 			$tile = "3x";
 		}
 		elsif($arrSize == 7 || $arrSize == 8) {
