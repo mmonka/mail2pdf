@@ -789,7 +789,7 @@ sub pdf_add_email {
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, 25/pt );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x * 0.4 + ( length($subject) * 15 )  , $INFOBOX_HEIGHT * 0.15 );
+		$subject_text->translate( $size_x * 0.4 + ( length($subject) * 15 )  , $size_y - ( $INFOBOX_HEIGHT * 0.15 ) );
 		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
