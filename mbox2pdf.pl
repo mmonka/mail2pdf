@@ -64,7 +64,7 @@ my $size_y = A4_y;
 my $ADD_INFOBOX    = undef;
 # Infobox size in Percent of Page
 my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
-my $INFOBOX_HEIGHT = ($size_y * 0.10);
+my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
 
 # some arrays
 our @text;
@@ -735,7 +735,7 @@ sub pdf_add_email {
 	
 	# Date
 	my $headline_date = $page->text;
-	$headline_date->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.2));
+	$headline_date->font( $font{'Helvetica'}{'Bold'}, 50/pt);
 	$headline_date->fillcolor('black');
 	$headline_date->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_date->text_center($date);
@@ -761,7 +761,7 @@ sub pdf_add_email {
 
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
+	$headline_year->font( $font{'Helvetica'}{'Bold'}, 50/pt);
 	$headline_year->fillcolor('black');
 	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_year->text_right($year);
@@ -785,10 +785,11 @@ sub pdf_add_email {
 		}
 
 
+		# Todo: move to text_block
 		my $subject_text = $page->text;
 		$subject_text->font( $font{'Helvetica'}{'Bold'}, 25/pt );
 		$subject_text->fillcolor('black');
-		$subject_text->translate( $size_x * 0.4 + ( length($subject) * 15 )  , $size_y - ($INFOBOX_HEIGHT * 0.15) );
+		$subject_text->translate( $size_x * 0.4 + ( length($subject) * 15 )  , $INFOBOX_HEIGHT * 0.15 );
 		$subject_text->text_right(decode("utf8", $subject));
 	
 		logging("VERBOSE", "Subject: '$subject'");
