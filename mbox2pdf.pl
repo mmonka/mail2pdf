@@ -61,7 +61,7 @@ my $size_x = A4_x;
 my $size_y = A4_y;
 
 # Draw a Infobox with Background, or just a line
-my $ADD_INFOBOX    = "true";
+my $ADD_INFOBOX    = "";
 # Infobox size in Percent of Page
 my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
 my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
@@ -1037,6 +1037,7 @@ sub handle_text {
 
 		logging("VERBOSE", "Found iPhone default footer");
 		$text =~ s/Von meinem iPhone gesendet//g;
+		chomp($text);
 	}
 
 	# encoding magic / result is 0 or 1
