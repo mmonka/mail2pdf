@@ -66,6 +66,10 @@ my $ADD_INFOBOX    = "true";
 my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
 my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
 
+# buffer, so resized pic placed well on content part
+my $x_buffer = 50;
+my $y_buffer = 50;
+
 # some arrays
 our @text;
 our @images;
@@ -110,7 +114,7 @@ if(!$type or $help) {
 print Dumper \%config if($verbose);
 
 # Some Logging
-logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Infobox: '$INFOBOX_HEIGHT' DPI: '".DPI."'");
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Infobox Bottom: $INFOBOX_BOTTOM Infobox Height: '$INFOBOX_HEIGHT' DPI: '".DPI."'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -887,7 +891,7 @@ sub pdf_add_email {
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x - 50, $size_y - $INFOBOX_HEIGHT) ;
+	my $geometry = sprintf("%sx%s", $size_x - $x_buffer, $INFOBOX_BOTTOM - $y_buffer) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
@@ -901,10 +905,11 @@ sub pdf_add_email {
 
 		$image->Set(density => DENSITY);
 
-		if( $w > $size_x || $h > $size_y ) {
+		# Check, if pic size fits content space
+		if( $w > $size_x || $h > ( $size_y - $INFOBOX_HEIGHT ) ) {
 	
 
-			logging("VERBOSE", "resize PIC cause width is greater then $size_x");
+			logging("VERBOSE", "resize PIC cause width is greater then $size_x || height > " . ( $size_y - $INFOBOX_HEIGHT ) );
 			$image->Resize( geometry => $geometry, compress => 'none' );
 		}
 
@@ -1003,7 +1008,7 @@ sub pdf_add_email {
 
 		# Calculate x/y Position, so Image is "center"
 		my $position_x = int ( $size_x - $w ) / 2; 
-		my $position_y = 20;		
+		my $position_y = $y_buffer;		
 
 		# Space for PIC(s)
 		my $pic_space_y = int ($size_y - $INFOBOX_HEIGHT);
