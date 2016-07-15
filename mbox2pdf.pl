@@ -909,7 +909,7 @@ sub pdf_add_email {
 		if( $w > $size_x || $h > ( $size_y - $INFOBOX_HEIGHT ) ) {
 	
 
-			logging("VERBOSE", "resize PIC cause width is greater then $size_x || height > " . ( $size_y - $INFOBOX_HEIGHT ) );
+			logging("VERBOSE", "resize PIC cause width is greater then $size_x" );
 			$image->Resize( geometry => $geometry, compress => 'none' );
 		}
 
@@ -918,48 +918,46 @@ sub pdf_add_email {
 		$h = $image->Get("height");
 		
 		$x = $image->Write('jpg:'.$file);
-		logging("VERBOSE", "Picture size  w '$w' h '$h' d '$d', PDF Size $size_x $size_y");
-
 	}
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($size_y - $INFOBOX_HEIGHT )  / 2 );
+			$geometry = sprintf("%sx%s", $size_x , ($INFOBOX_BOTTOM - $y_buffer)  / 2 );
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 2);
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 2);
 			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = sprintf("%ix%i", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 2);
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 2);
 			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y - $INFOBOX_HEIGHT) / 2 );
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($INFOBOX_BOTTOM - $y_buffer) / 2 );
 			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6 ) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($size_y - $INFOBOX_HEIGHT) / 2 );
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($INFOBOX_BOTTOM - $y_buffer) / 2 );
 			$tile = "3x";
 		}
 		elsif($arrSize == 7 || $arrSize == 8) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 4 );
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 4 );
 			$tile = "2x";
 		}
 		elsif($arrSize == 9 || $arrSize == 10) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($size_y - $INFOBOX_HEIGHT) / 5 );
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 5 );
 			$tile = "2x";
 		}
 		
@@ -971,26 +969,18 @@ sub pdf_add_email {
 				next;
 			}
 			
-			logging("VERBOSE", "Prepair file '$_' .... ");
 			$image->Read($_);
-			$image->Set(density => DENSITY);
-			$w = $image->Get("width");
-			$h = $image->Get("height");
-			$d = $image->Get("density");
-			logging("VERBOSE", "Picture size w '$w' h '$h' d '$d'");
 		}
 
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none', border => 5,  bordercolor => 'grey');
+		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none', border => 0,  bordercolor => 'grey');
 		$x = $montage->Write('jpg:'.$file);
 		
-		logging("VERBOSE", "Multi Image Email -> Montage , Size Y: '$size_y' Geometry: '$geometry' Tile: '$tile'");
-
 		# for calculate center position
 		$w = $size_x;
-		$h = $size_y;
+		$h = $INFOBOX_BOTTOM - $y_buffer;
 	}
 	else {
 
@@ -998,7 +988,6 @@ sub pdf_add_email {
 		return 0;
 	}
 
-	logging("VERBOSE", "File $file");
 
 	# Add photo to pdf page
 	my $photo = $page->gfx;
@@ -1006,23 +995,24 @@ sub pdf_add_email {
 	# check, that file exists
 	if (-e $file) {
 
-		# Calculate x/y Position, so Image is "center"
-		my $position_x = int ( $size_x - $w ) / 2; 
-		my $position_y = $y_buffer;		
+		# Calculate x/y Position, so Image is "center" and fit nicly
+		my $position_x = 0; 
+		my $position_y = int ( $y_buffer / 2);		
 
 		# Space for PIC(s)
-		my $pic_space_y = int ($size_y - $INFOBOX_HEIGHT);
+		my $pic_space_y = int ($INFOBOX_BOTTOM - $y_buffer);
 	
 		# calculate y position
 		if($h < $pic_space_y ) {
 
+			# center for y axis
 			$position_y = int ( $pic_space_y - $h) / 2;
 			logging("VERBOSE", "Calculate new y position '$position_y' $pic_space_y");
 		}
 
 		my $photo_file = $pdf->image_jpeg($file);
-		logging("VERBOSE", "Write '$photo_file' size_x: '$size_x' size_y: '$size_y' w: '$w',h: '$h' to pdf x: '$position_x', y: '$position_y'");
 		$photo->image( $photo_file, $position_x, $position_y );
+		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' geometry: '$geometry' w: '$w' h: '$h' pos_x: '$position_x', pos_y: '$position_y'");
 	}
 	else {
 
