@@ -38,6 +38,7 @@ my $testlimit = 0;
 my $onlyyear;
 my $start = 0;
 my $end = 0;
+my $text_length = 0;
 
 # where to save tmp files
 our $tmp_dir_hash;
@@ -724,9 +725,9 @@ sub pdf_add_email {
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
-		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, ($INFOBOX_HEIGHT * 0.3));
+		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, 40/pt);
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( 150  , $INFOBOX_BOTTOM - ($INFOBOX_HEIGHT * 0.3));
+		$headline_page_count->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.6) );
 		$headline_page_count->text_center($email_count);
 	}
 	
@@ -822,6 +823,7 @@ sub pdf_add_email {
 	if(@text > 0 ) {
 
 			my $content = "";
+			$text_length = 0;
 
 			# Get Text-Element and add to PDF
 			foreach(@text) {
@@ -836,15 +838,15 @@ sub pdf_add_email {
 
 			logging("VERBOSE", "Text: '$content' length: '" . length($content) . "'");
 
-			my $len = length($content);
+			$text_length = length($content);
 
-			if($len > 0) {
+			if($text_length > 0) {
 
 				my $text  = $page->text;
 
 				# Dynamic Font size; depends on text length
 				my $fsize = 30/pt; 
-				if( $len > 400 ) {
+				if( $text_length > 400 ) {
 
 					$fsize = 18/pt;
 				} 
@@ -883,8 +885,6 @@ sub pdf_add_email {
 
 				logging("VERBOSE", "Add line: (0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT) / ($size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT)");
 
-				# y size is now smaller.
-				$size_y = $INFOBOX_BOTTOM - $INFOBOX_HEIGHT;
 			}
 
 	}
@@ -954,42 +954,44 @@ sub pdf_add_email {
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
+		my $geo_size_y = ( $text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer);
+
 		if($arrSize == 2) {
 		
-			$geometry = sprintf("%sx%s", $size_x , ($INFOBOX_BOTTOM - $y_buffer)  / 2 );
+			$geometry = sprintf("%sx%s", $size_x , ($geo_size_y)  / 2 );
 			$tile = "1x2";
 
 		}
 		elsif($arrSize == 3) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 2);
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($geo_size_y) / 2);
 			$tile = "2x2";
 		}
 		elsif($arrSize == 4) {
 
-			$geometry = sprintf("%ix%i", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 2);
+			$geometry = sprintf("%ix%i", $size_x / 2 , ($geo_size_y) / 2);
 			$tile = "2x2";
 			
 		}
 		elsif($arrSize == 5) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($INFOBOX_BOTTOM - $y_buffer) / 2 );
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($geo_size_y) / 2 );
 			$tile = "3x2";
 			
 		}
 		elsif($arrSize == 6 ) {
 
-			$geometry = sprintf("%sx%s", $size_x / 3 , ($INFOBOX_BOTTOM - $y_buffer) / 2 );
+			$geometry = sprintf("%sx%s", $size_x / 3 , ($geo_size_y) / 2 );
 			$tile = "3x";
 		}
 		elsif($arrSize == 7 || $arrSize == 8) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 4 );
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($geo_size_y) / 4 );
 			$tile = "2x";
 		}
 		elsif($arrSize == 9 || $arrSize == 10) {
 
-			$geometry = sprintf("%sx%s", $size_x / 2 , ($INFOBOX_BOTTOM - $y_buffer) / 5 );
+			$geometry = sprintf("%sx%s", $size_x / 2 , ($geo_size_y) / 5 );
 			$tile = "2x";
 		}
 		
@@ -1032,7 +1034,7 @@ sub pdf_add_email {
 		my $position_y = int ( $y_buffer / 2);		
 
 		# Space for PIC(s)
-		my $pic_space_y = int ($INFOBOX_BOTTOM - $y_buffer);
+		my $pic_space_y = ($text_length > 0 ? int ($INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer) : int ($INFOBOX_BOTTOM - $y_buffer) );
 	
 		# calculate y position
 		if($h < $pic_space_y ) {
