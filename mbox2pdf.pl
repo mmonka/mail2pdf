@@ -781,7 +781,7 @@ sub pdf_add_email {
 		chomp($subject);
  
 		# decode subject 
-		if( $subject =~ /.*(utf-8|utf8).*/) {
+		if( $subject =~ /.*(utf-8|utf8|UTF-8|UTF8).*/) {
 
 			my $decoded = decode_mimewords($subject);
 
@@ -836,27 +836,55 @@ sub pdf_add_email {
 
 			logging("VERBOSE", "Text: '$content' length: '" . length($content) . "'");
 
-			if(length($content) > 0) {
+			my $len = length($content);
 
-				my $text = $page->text;
-				$text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
+			if($len > 0) {
+
+				my $text  = $page->text;
+
+				# Dynamic Font size; depends on text length
+				my $fsize = 30/pt; 
+				if( $len > 400 ) {
+
+					$fsize = 18/pt;
+				} 
+
+				$text->font( $font{'Helvetica'}{'Bold'}, $fsize );
 				$text->fillcolor('black');
 				
 				#
 				# more information for the values check inside the sub
 				#
+				#    -x        => $left_edge_of_block,
+				#    -y        => $baseline_of_first_line,
+				#    -w        => $width_of_block,
+				#    -h        => $height_of_block,
+		
 				my ( $endw, $y_pos, $paragraph ) = text_block(
 						$text,
 						$content,
 						-x        => $size_x * 0.1,
-						-y        => $size_y - ($INFOBOX_HEIGHT * 0.30),
-						-w        => $size_x * 0.6,
-						-h        => $size_y - ($INFOBOX_HEIGHT * 0.05),
-						-lead     => 15/pt * 1.2,
+						-y        => $size_y - $INFOBOX_HEIGHT - $fsize,
+						-w        => $size_x * 0.8,
+						-h        => $INFOBOX_HEIGHT,
+						-lead     => 20/pt * 2,
 						-parspace => 0/pt,
 						-align    => 'left',
 						-hang     => "",
 						);
+	
+				# add another line	
+				my $line = $page->gfx;
+				$line->strokecolor('black');
+				$line->linewidth(5);
+				$line->move( 0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
+				$line->line( $size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
+				$line->stroke;
+
+				logging("VERBOSE", "Add line: (0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT) / ($size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT)");
+
+				# y size is now smaller.
+				$size_y = $INFOBOX_BOTTOM - $INFOBOX_HEIGHT;
 			}
 
 	}
@@ -1041,7 +1069,9 @@ sub handle_text {
 	$text =~ s/\n//;	
 
 	# delete iPhone default footer
-	if($text =~ /.*meinem iPhone gesendet.*/ ) {
+	if($text =~ /.*meinem iPhone gesendet.*/ ||
+	   $text =~/.*Gesendet von meinem iPhone.*/
+	  ) {
 
 		logging("VERBOSE", "ignore iPhone default footer");
 		return undef;
@@ -1062,10 +1092,8 @@ sub handle_text {
 #    $text_handler_from_page,
 #    $text_to_place,
 #    -x        => $left_edge_of_block,
-#
 #    -y        => $baseline_of_first_line,
 #    -w        => $width_of_block,
-#
 #    -h        => $height_of_block,
 #   [-lead     => $font_size * 1.2 | $distance_between_lines,]
 #   [-parspace => 0 | $extra_distance_between_paragraphs,]
