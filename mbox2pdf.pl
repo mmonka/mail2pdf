@@ -748,6 +748,10 @@ sub pdf_add_email {
 	my $from_text = $page->text;
 	$from_text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
 	$from_text->fillcolor('black');
+
+	#
+	# more information for the values check inside the sub
+	#
 	my ( $endw, $y_pos, $paragraph ) = text_block(
 			$from_text,
 			$from,
@@ -841,6 +845,10 @@ sub pdf_add_email {
 				my $text = $page->text;
 				$text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
 				$text->fillcolor('black');
+				
+				#
+				# more information for the values check inside the sub
+				#
 				my ( $endw, $y_pos, $paragraph ) = text_block(
 						$text,
 						$content,
@@ -996,7 +1004,7 @@ sub pdf_add_email {
 	if (-e $file) {
 
 		# Calculate x/y Position, so Image is "center" and fit nicly
-		my $position_x = 0; 
+		my $position_x = int (($size_x - $w ) / 2); 
 		my $position_y = int ( $y_buffer / 2);		
 
 		# Space for PIC(s)
