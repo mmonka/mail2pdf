@@ -542,13 +542,12 @@ sub handle_mime_body {
 			
 				foreach(@lines) {
 		
-					$_ =~ s/\r\n//;	
-					$_ =~ s/\n//;	
-					
-					if ( defined $_ && length($_) > 0) {
+					my $text = handle_text($_);
 
-						push(@text, $_);	
-						logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$_'");					
+					if(defined $text && length($text) > 0) {
+						
+						push(@text, $text);	
+						logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$text'");					
 					}
 				}
 			}
@@ -835,13 +834,10 @@ sub pdf_add_email {
 				$content = $content . $text . " ";
 			}
 
-			logging("VERBOSE", "Text: $content");
+			logging("VERBOSE", "Text: '$content' length: '" . length($content) . "'");
 
 			if(length($content) > 0) {
 
-		
-				logging("VERBOSE", "Text length: '" . length($content) . "'");
-	
 				my $text = $page->text;
 				$text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
 				$text->fillcolor('black');
@@ -1040,12 +1036,15 @@ sub handle_text {
 
 	my ($text) = @_;
 
+	# delete newline, character return
+	$text =~ s/\r\n//;	
+	$text =~ s/\n//;	
+
 	# delete iPhone default footer
 	if($text =~ /.*meinem iPhone gesendet.*/ ) {
 
-		logging("VERBOSE", "Found iPhone default footer");
-		$text =~ s/Von meinem iPhone gesendet//g;
-		chomp($text);
+		logging("VERBOSE", "ignore iPhone default footer");
+		return undef;
 	}
 
 	# encoding magic / result is 0 or 1
