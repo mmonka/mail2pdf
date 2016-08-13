@@ -836,7 +836,7 @@ sub pdf_add_email {
 						$text,
 						$content,
 						-x        => $size_x * 0.1,
-						-y        => $size_y - $INFOBOX_HEIGHT - $fsize,
+						-y        => $size_y - $INFOBOX_HEIGHT - ($fsize*2),
 						-w        => $size_x * 0.8,
 						-h        => $INFOBOX_HEIGHT,
 						-lead     => 20/pt * 2,
@@ -893,7 +893,7 @@ sub pdf_add_email {
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x - $x_buffer, $INFOBOX_BOTTOM - $y_buffer) ;
+	my $geometry = sprintf("%sx%s", $size_x - $x_buffer, $text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
@@ -908,7 +908,7 @@ sub pdf_add_email {
 		$image->Set(density => DENSITY);
 
 		# Check, if pic size fits content space
-		if( $w > $size_x || $h > ( $size_y - $INFOBOX_HEIGHT ) ) {
+		if( $w > $size_x || $h > ($text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer ) ) {
 	
 
 			logging("VERBOSE", "resize PIC cause width is greater then $size_x" );
