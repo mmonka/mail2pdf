@@ -39,6 +39,7 @@ my $onlyyear;
 my $start = 0;
 my $end = 0;
 my $text_length = 0;
+my $found_video = 0;
 
 # where to save tmp files
 our $tmp_dir_hash;
@@ -513,6 +514,8 @@ sub handle_mime_body {
 	my $html_body 	= "";
 	my $content_type;
 
+	$found_video 	= 0;
+
 	# erase global array content
 	@text	= ();
 	@images = ();
@@ -557,7 +560,6 @@ sub handle_mime_body {
 			
 				my $path = $subentity->bodyhandle->path;
 	
-		
 				my $image = Image::Magick->new(magick=>'JPEG');
 				$image->Read($path);
 
@@ -568,8 +570,6 @@ sub handle_mime_body {
 				# Todo: Change to hash and add Image Size
 				push(@images, $path);
 
-				
-
 			}
 			if($ct =~ "text/html") {
 
@@ -577,7 +577,8 @@ sub handle_mime_body {
 			}
 
 			if($ct =~ "video") {
-
+	
+				$found_video++;
 				logging("VERBOSE", "Part $i - Type '$ct'");
 			}
 		}
@@ -852,9 +853,6 @@ sub pdf_add_email {
 				$line->move( 0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
 				$line->line( $size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
 				$line->stroke;
-
-				logging("VERBOSE", "Add line: (0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT) / ($size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT)");
-
 			}
 
 	}
@@ -893,7 +891,7 @@ sub pdf_add_email {
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%sx%s", $size_x - $x_buffer, $text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer) ;
+	my $geometry = sprintf("%ix%i", $size_x - $x_buffer, $text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
@@ -911,7 +909,7 @@ sub pdf_add_email {
 		if( $w > $size_x || $h > ($text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer ) ) {
 	
 
-			logging("VERBOSE", "resize PIC cause width is greater then $size_x" );
+			logging("VERBOSE", "resize PIC cause width is greater then $size_x ($geometry)" );
 			$image->Resize( geometry => $geometry, compress => 'none' );
 		}
 
@@ -989,6 +987,17 @@ sub pdf_add_email {
 	else {
 
 		logging("VERBOSE", "No Images found");
+		
+		if($found_video > 0 ) {
+
+			# Add Video Note
+			my $headline_video = $page->text;
+			$headline_video->font( $font{'Helvetica'}{'Bold'}, 100/pt);
+			$headline_video->fillcolor('black');
+			$headline_video->translate( $size_x - ($size_x * 0.5)  , $size_y - ( 4 * $INFOBOX_HEIGHT ) ) ;
+			$headline_video->text_right("Video");
+		} 
+
 		return 0;
 	}
 
@@ -1016,11 +1025,11 @@ sub pdf_add_email {
 
 		my $photo_file = $pdf->image_jpeg($file);
 		$photo->image( $photo_file, $position_x, $position_y );
-		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' geometry: '$geometry' w: '$w' h: '$h' pos_x: '$position_x', pos_y: '$position_y'");
+		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' w x h : '$w x $h' pos_x: '$position_x', pos_y: '$position_y'");
 	}
 	else {
 
-		logging("WARING", "Unable to find image file: $!");
+		logging("WARING", "Unable to find image file: $! - add video note");
 	}
 
 	# To delete all the images but retain the Image::Magick object use
