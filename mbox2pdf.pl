@@ -801,14 +801,6 @@ sub pdf_add_email {
 		my $translate_x = $size_x * 0.4 + ( length($subject) * 20 );
 		my $translate_y = $size_y - ( $INFOBOX_HEIGHT * 0.5 );
 
-		# Message test is available 
-		if(@text > 0 ) {
-
-			$size = "25/pt";
-			$translate_x = $size_x * 0.4 + ( length($subject) * 15 );
-			$translate_y = $size_y - ( $INFOBOX_HEIGHT * 0.15 );
-		}
-
 		$subject_text->font( $font{'Helvetica'}{'Bold'},$size );
 		$subject_text->fillcolor('black');
 		$subject_text->translate( $translate_x  , $translate_y );
