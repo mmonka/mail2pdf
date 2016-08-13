@@ -62,7 +62,7 @@ my $size_x = A4_x;
 my $size_y = A4_y;
 
 # Draw a Infobox with Background, or just a line
-my $ADD_INFOBOX    = "";
+my $ADD_INFOBOX    = "true";
 # Infobox size in Percent of Page
 my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
 my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
@@ -743,28 +743,6 @@ sub pdf_add_email {
 	$headline_date->fillcolor('black');
 	$headline_date->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.3));
 	$headline_date->text_center($date);
-
-	# From
-	my $from_text = $page->text;
-	$from_text->font( $font{'Helvetica'}{'Bold'}, 18/pt );
-	$from_text->fillcolor('black');
-
-	#
-	# more information for the values check inside the sub
-	#
-	my ( $endw, $y_pos, $paragraph ) = text_block(
-			$from_text,
-			$from,
-			-x        => $size_x * 0.1,
-			-y        => $size_y - ($INFOBOX_HEIGHT * 0.15),
-			-w        => $size_x * 0.6,
-			-h        => $size_y - ($INFOBOX_HEIGHT * 0.3),
-			-lead     => 15/pt * 1.2,
-			-parspace => 0/pt,
-			-align    => 'left',
-			-hang     => "",
-			);
-
 
 
 	# Year
