@@ -59,8 +59,8 @@ use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
 use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 
 # Define Page size
-my $size_x = A4_x;
-my $size_y = A4_y;
+my $size_x = A6_x;
+my $size_y = A6_y;
 
 # Draw a Infobox with Background, or just a line
 my $ADD_INFOBOX    = "true";
@@ -71,6 +71,13 @@ my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
 # buffer, so resized pic placed well on content part
 my $x_buffer = 50;
 my $y_buffer = 50;
+
+# Font size
+my $headline_font_size =  50/pt;
+my $date_font_size = 40/pt;
+my $from_font_size = 15/pt;
+my $text_font_size = "";
+my $verbose_font_size = 40/pt;
 
 # some arrays
 our @text;
@@ -726,9 +733,9 @@ sub pdf_add_email {
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
-		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, 40/pt);
+		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, $verbose_font_size);
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.6) );
+		$headline_page_count->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.8) );
 		$headline_page_count->text_center($email_count);
 	}
 	
@@ -740,17 +747,17 @@ sub pdf_add_email {
 	
 	# Date
 	my $headline_date = $page->text;
-	$headline_date->font( $font{'Helvetica'}{'Bold'}, 50/pt);
+	$headline_date->font( $font{'Helvetica'}{'Bold'}, $date_font_size);
 	$headline_date->fillcolor('black');
-	$headline_date->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.3));
+	$headline_date->translate( $size_x * 0.05  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ));
 	$headline_date->text_center($date);
 
 
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Helvetica'}{'Bold'}, 50/pt);
+	$headline_year->font( $font{'Helvetica'}{'Bold'}, $date_font_size);
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ($INFOBOX_HEIGHT * 0.3));
+	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ) );
 	$headline_year->text_right($year);
 
 	# --------------------------------------	
@@ -773,17 +780,20 @@ sub pdf_add_email {
 
 
 		# Todo: move to text_block
+		# Add Subject and FromAdress to Infobox
 		my $subject_text = $page->text;
 
-		# Make subject presenter, if no text is available
-		my $size = "60/pt";
 		my $translate_x = $size_x * 0.4 + ( length($subject) * 20 );
 		my $translate_y = $size_y - ( $INFOBOX_HEIGHT * 0.5 );
 
-		$subject_text->font( $font{'Helvetica'}{'Bold'},$size );
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, $headline_font_size );
 		$subject_text->fillcolor('black');
 		$subject_text->translate( $translate_x  , $translate_y );
 		$subject_text->text_right(decode("utf8", $subject));
+		$subject_text->nl();
+		$subject_text->font( $font{'Helvetica'}{'Bold'}, $from_font_size );
+		$subject_text->translate( $translate_x  , $translate_y - $from_font_size );
+		$subject_text->text_right(decode("utf8", $from));
 	
 		logging("VERBOSE", "Subject: '$subject'");
 	}
@@ -816,7 +826,7 @@ sub pdf_add_email {
 				my $text  = $page->text;
 
 				# Dynamic Font size; depends on text length
-				my $fsize = 30/pt; 
+				my $fsize = 25/pt; 
 				if( $text_length > 400 ) {
 
 					$fsize = 18/pt;
@@ -840,7 +850,7 @@ sub pdf_add_email {
 						-y        => $size_y - $INFOBOX_HEIGHT - ($fsize*2),
 						-w        => $size_x * 0.8,
 						-h        => $INFOBOX_HEIGHT,
-						-lead     => 20/pt * 2,
+						-lead     => 10/pt * 2,
 						-parspace => 0/pt,
 						-align    => 'left',
 						-hang     => "",
