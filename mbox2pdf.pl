@@ -15,6 +15,7 @@ use Date::Parse;
 use Getopt::Long;
 
 use PDF::API2;
+use PDF::TextBlock;
 
 use Digest::MD5 qw(md5_hex); 
 
@@ -73,7 +74,7 @@ my $x_buffer = 50;
 my $y_buffer = 50;
 
 # Font size
-my $headline_font_size =  50/pt;
+my $headline_font_size =  35/pt;
 my $date_font_size = 40/pt;
 my $from_font_size = 15/pt;
 my $text_font_size = "";
@@ -683,6 +684,8 @@ sub pdf_add_email {
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
 
+	my ($name, $email) = check_from($from);
+
 	# Add new Page 
 	my $page = $pdf->page;
 	$page->mediabox( $size_x, $size_y );
@@ -765,37 +768,39 @@ sub pdf_add_email {
 	# --------------------------------------	
 	if($subject) {
 		
+		# Fix encoding
 		chomp($subject);
- 
-		# decode subject 
 		if( $subject =~ /.*(utf-8|utf8|UTF-8|UTF8).*/) {
 
-			my $decoded = decode_mimewords($subject);
-
-			# Fix encoding
-			$subject = $decoded;
-
+			my $decoded 	= decode_mimewords($subject);
+			$subject 	= decode("utf8", $decoded);
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
+		# print Subject and From
+		my $tb  = PDF::TextBlock->new({
+				pdf       => $pdf,
+				page	  => $page,
+				x	  => $size_x * 0.2,
+				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.5 ),
+				w	  => 300/mm,
+				align	  => 'left',
+				fonts     => {
+				b => PDF::TextBlock::Font->new({
+					pdf  => $pdf,
+					font => $pdf->corefont( 'Helvetica-Bold', -encoding => 'utf8'),
+					size => $headline_font_size,
+					}),
+				},
+		});
+		
+		$tb->text("<b>$subject</b>");
+		my ($endw, $ypos) = $tb->apply();
+		$tb->y($ypos);
+		$tb->text("<p>$name $email</p>");
+		$tb->apply();
 
-		# Todo: move to text_block
-		# Add Subject and FromAdress to Infobox
-		my $subject_text = $page->text;
-
-		my $translate_x = $size_x * 0.4 + ( length($subject) * 20 );
-		my $translate_y = $size_y - ( $INFOBOX_HEIGHT * 0.5 );
-
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, $headline_font_size );
-		$subject_text->fillcolor('black');
-		$subject_text->translate( $translate_x  , $translate_y );
-		$subject_text->text_right(decode("utf8", $subject));
-		$subject_text->nl();
-		$subject_text->font( $font{'Helvetica'}{'Bold'}, $from_font_size );
-		$subject_text->translate( $translate_x  , $translate_y - $from_font_size );
-		$subject_text->text_right(decode("utf8", $from));
-	
-		logging("VERBOSE", "Subject: '$subject'");
+		logging("VERBOSE", "Subject: '$subject' (endw:$endw, ypos:$ypos)");
 	}
 
 	# ----------------------------------------------------------------
@@ -1271,6 +1276,21 @@ sub logging {
 	return 0;
 }
 
+# --------------------------------------------------------
+# Check and split form Header 
+# --------------------------------------------------------
+sub check_from {
+
+	my $from = shift;
+
+	if($from =~ /^(.*) <(.+@.+)>$/ ) {
+
+		return $1, $2;
+	}
+
+	logging("VERBOSE", "$from .. no match");
+
+}
 # --------------------------------------------------------
 # Validate File
 # --------------------------------------------------------
