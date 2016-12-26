@@ -784,6 +784,7 @@ sub pdf_add_email {
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
+
 		# print Subject and From
 		my $tb  = PDF::TextBlock->new({
 				pdf       => $pdf,
@@ -791,10 +792,20 @@ sub pdf_add_email {
 				x	  => $size_x * 0.15,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
 				w	  => $size_x - ($size_x * 0.15),
-				align	  => 'left',
+				h	  => $INFOBOX_HEIGHT * 0.7,
+				lead	  => 160 * 1.2,
+				fonts     => {
+					default => PDF::TextBlock::Font->new({
+						pdf  => $pdf,
+						size => 160,
+					}),
+				},
 		});
+
+		$tb->text($subject . "\r\n");
 		# print subject to mediabox	
-		$tb->text("$subject\r\n" . $name . " via " . $email);
+		$tb->apply();
+		$tb->text($name . " via " . $email);
 		my ($endw, $ypos) = $tb->apply();
 		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email' (endw:$endw, ypos:$ypos)");
 
@@ -809,24 +820,25 @@ sub pdf_add_email {
 
 		my $text  = $page->text;
 
-		my $fsize = "48";
-		$text->font( $font{'Helvetica'}{'Bold'}, $fsize );
-		$text->fillcolor('black');
-
 		my $tb= PDF::TextBlock->new({
 				pdf       => $pdf,
 				page	  => $page,
+				text	  => $text_as_line,
 				x	  => $size_x * 0.1,
-				y         => $size_y - $INFOBOX_HEIGHT - ($fsize*2),
+				y         => $size_y - $INFOBOX_HEIGHT,
 			  	w 	  => $size_x * 0.8, 
+				h	  => $INFOBOX_HEIGHT,
+				lead	  => 50 * 2,
 				fonts     => {
-				b => PDF::TextBlock::Font->new({
-					pdf  => $pdf,
-					font => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'utf8' ),
+					default => PDF::TextBlock::Font->new({
+						pdf  => $pdf,
+						font => $pdf->corefont( 'Courier' ),
+						size => 50,
+						fillcolor => '#000000',
 					}),
 				},
-				});
-		$tb->text($text_as_line);
+		});
+
 		my($endw, $ypos, $overflow)= $tb->apply();
 
 		logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
