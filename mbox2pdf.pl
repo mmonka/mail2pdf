@@ -25,6 +25,8 @@ use utf8;
 
 # Image Manipulatin
 use Image::Magick;
+
+binmode STDOUT, ":encoding(UTF-8)";
    
 # --------------------------------------------------
 # Global Variables
@@ -790,12 +792,6 @@ sub pdf_add_email {
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
 				w	  => $size_x - ($size_x * 0.15),
 				align	  => 'left',
-				fonts     => {
-				# font is a PDF::API2::Resource::Font::CoreFont
-				b => PDF::TextBlock::Font->new({
-					pdf  => $pdf,
-					}),
-				}
 		});
 		# print subject to mediabox	
 		$tb->text("$subject\r\n" . $name . " via " . $email);
@@ -807,68 +803,41 @@ sub pdf_add_email {
 	# ----------------------------------------------------------------
 	# ContentText
 	# ----------------------------------------------------------------
-	if(@text > 0 ) {
+	if(length($text_as_line) > 0) {
 
-			logging("VERBOSE", "Text: '$text_as_line' length: '" . length($text_as_line) . "'");
+		logging("VERBOSE", "Text: '$text_as_line' length: '" . length($text_as_line) . "'");
 
-			if(length($text_length) > 0) {
+		my $text  = $page->text;
 
-				my $text  = $page->text;
+		my $fsize = "48";
+		$text->font( $font{'Helvetica'}{'Bold'}, $fsize );
+		$text->fillcolor('black');
 
-				# Dynamic Font size; depends on text length
-				my $fsize = 25/pt; 
-				if( $text_length > 400 ) {
+		my $tb= PDF::TextBlock->new({
+				pdf       => $pdf,
+				page	  => $page,
+				x	  => $size_x * 0.1,
+				y         => $size_y - $INFOBOX_HEIGHT - ($fsize*2),
+			  	w 	  => $size_x * 0.8, 
+				fonts     => {
+				b => PDF::TextBlock::Font->new({
+					pdf  => $pdf,
+					font => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'utf8' ),
+					}),
+				},
+				});
+		$tb->text($text_as_line);
+		my($endw, $ypos, $overflow)= $tb->apply();
 
-					$fsize = 18/pt;
-				} 
+		logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
 
-				$text->font( $font{'Helvetica'}{'Bold'}, $fsize );
-				$text->fillcolor('black');
-				
-				#
-				# more information for the values check inside the sub
-				#
-				#    -x        => $left_edge_of_block,
-				#    -y        => $baseline_of_first_line,
-				#    -w        => $width_of_block,
-				#    -h        => $height_of_block,
-	
-				my $tb= PDF::TextBlock->new({
-						pdf       => $pdf,
-						fonts     => {
-						b => PDF::TextBlock::Font->new({
-							pdf  => $pdf,
-							font => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'latin1' ),
-							}),
-						},
-						});
-				$tb->text($text_as_line);
-				my($endw, $ypos, $overflow)= $tb->apply();
-	
-				logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
-
-				my ( $endw, $y_pos, $paragraph ) = text_block(
-						$text,
-						$text_as_line,
-						-x        => $size_x * 0.1,
-						-y        => $size_y - $INFOBOX_HEIGHT - ($fsize*2),
-						-w        => $size_x * 0.8,
-						-h        => $INFOBOX_HEIGHT,
-						-lead     => 10/pt * 2,
-						-parspace => 0/pt,
-						-align    => 'left',
-						-hang     => "",
-						);
-	
-				# add another line	
-				my $line = $page->gfx;
-				$line->strokecolor('black');
-				$line->linewidth(5);
-				$line->move( 0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
-				$line->line( $size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
-				$line->stroke;
-			}
-
+		# add another line	
+		my $line = $page->gfx;
+		$line->strokecolor('black');
+		$line->linewidth(5);
+		$line->move( 0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
+		$line->line( $size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
+		$line->stroke;
 	}
 	
 	# --------------------------------------------------------
@@ -886,7 +855,7 @@ sub pdf_add_email {
 	my $arrSize = @images;
 
 	# this will be the montage file
-	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date.$subject) . ".jpg";
+	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date.$name) . ".jpg";
 
 	my $x;
 	my $tile;
