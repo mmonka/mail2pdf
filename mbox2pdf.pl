@@ -46,7 +46,7 @@ my $found_video = 0;
 our $tmp_dir_hash;
 
 # Constant for Page size
-use constant DPI => 300;
+use constant DPI => 600;
 use constant mm => 25.4 / DPI;  # 25.4 mm in an inch, 72 points in an inch
 use constant in => 1 / DPI;     # 72 points in an inch
 use constant pt => 1;           # 1 point
@@ -60,8 +60,8 @@ use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
 use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
 
 # Define Page size
-my $size_x = A6_x;
-my $size_y = A6_y;
+my $size_x = A4_x;
+my $size_y = A4_y;
 
 # Draw a Infobox with Background, or just a line
 my $ADD_INFOBOX    = "true";
@@ -74,15 +74,17 @@ my $x_buffer = 50;
 my $y_buffer = 50;
 
 # Font size
-my $headline_font_size =  35/pt;
-my $date_font_size = 40/pt;
-my $from_font_size = 15/pt;
+my $headline_font_size =  120/pt;
+my $date_font_size = 60/pt;
+my $from_font_size = 30/pt;
 my $text_font_size = "";
 my $verbose_font_size = 40/pt;
 
 # some arrays
 our @text;
 our @images;
+
+our $text_as_line;
 
 # Include some vars from config.pl 
 my %config = do '/Users/markus/git/mail2pdf/config.pl';
@@ -528,6 +530,8 @@ sub handle_mime_body {
 	@text	= ();
 	@images = ();
 
+	$text_as_line = "";
+
 	# --------------------------------------------
 	# get email body
 	# --------------------------------------------
@@ -558,7 +562,7 @@ sub handle_mime_body {
 
 					if(defined $text && length($text) > 0) {
 						
-						push(@text, $text);	
+						$text_as_line = $text_as_line . $text . " ";	
 						logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$text'");					
 					}
 				}
@@ -774,6 +778,7 @@ sub pdf_add_email {
 
 			my $decoded 	= decode_mimewords($subject);
 			$subject 	= decode("utf8", $decoded);
+			
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
@@ -781,26 +786,22 @@ sub pdf_add_email {
 		my $tb  = PDF::TextBlock->new({
 				pdf       => $pdf,
 				page	  => $page,
-				x	  => $size_x * 0.2,
-				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.5 ),
-				w	  => 300/mm,
+				x	  => $size_x * 0.15,
+				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
+				w	  => $size_x - ($size_x * 0.15),
 				align	  => 'left',
 				fonts     => {
+				# font is a PDF::API2::Resource::Font::CoreFont
 				b => PDF::TextBlock::Font->new({
 					pdf  => $pdf,
-					font => $pdf->corefont( 'Helvetica-Bold', -encoding => 'utf8'),
-					size => $headline_font_size,
 					}),
-				},
+				}
 		});
-		
-		$tb->text("<b>$subject</b>");
+		# print subject to mediabox	
+		$tb->text("$subject\r\n" . $name . " via " . $email);
 		my ($endw, $ypos) = $tb->apply();
-		$tb->y($ypos);
-		$tb->text("<p>$name $email</p>");
-		$tb->apply();
+		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email' (endw:$endw, ypos:$ypos)");
 
-		logging("VERBOSE", "Subject: '$subject' (endw:$endw, ypos:$ypos)");
 	}
 
 	# ----------------------------------------------------------------
@@ -808,25 +809,9 @@ sub pdf_add_email {
 	# ----------------------------------------------------------------
 	if(@text > 0 ) {
 
-			my $content = "";
-			$text_length = 0;
+			logging("VERBOSE", "Text: '$text_as_line' length: '" . length($text_as_line) . "'");
 
-			# Get Text-Element and add to PDF
-			foreach(@text) {
-
-				next if($_ eq "delete");
-
-				my $text = handle_text($_);
-				
-				# check plain/text
-				$content = $content . $text . " ";
-			}
-
-			logging("VERBOSE", "Text: '$content' length: '" . length($content) . "'");
-
-			$text_length = length($content);
-
-			if($text_length > 0) {
+			if(length($text_length) > 0) {
 
 				my $text  = $page->text;
 
@@ -847,10 +832,24 @@ sub pdf_add_email {
 				#    -y        => $baseline_of_first_line,
 				#    -w        => $width_of_block,
 				#    -h        => $height_of_block,
-		
+	
+				my $tb= PDF::TextBlock->new({
+						pdf       => $pdf,
+						fonts     => {
+						b => PDF::TextBlock::Font->new({
+							pdf  => $pdf,
+							font => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'latin1' ),
+							}),
+						},
+						});
+				$tb->text($text_as_line);
+				my($endw, $ypos, $overflow)= $tb->apply();
+	
+				logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
+
 				my ( $endw, $y_pos, $paragraph ) = text_block(
 						$text,
-						$content,
+						$text_as_line,
 						-x        => $size_x * 0.1,
 						-y        => $size_y - $INFOBOX_HEIGHT - ($fsize*2),
 						-w        => $size_x * 0.8,
