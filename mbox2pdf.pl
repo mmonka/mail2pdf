@@ -211,33 +211,12 @@ if($type eq "mbox") {
 		# Fetch Email Content
 		my $content = $mbox->read_next_email();
 
-		# Check Options (testlimit) for debugging
-		if($testlimit > 0) {
-
-			if($start > 0 && $end > 0 ) {
-
-				# process
-				if($email_count >= $start && $email_count <= $end ) {
-
-					logging("VERBOSE", "$start <= '$email_count' > $end");
-				}
-				# skip processing
-				else {
-
-					logging("VERBOSE", "skip Email '$email_count' reached testlimit");
-					$email_count++;
-					next;
-				}
-
-				last if($email_count > $end);
-			}
-			else {
-
-				# stop processing
-				logging("VERBOSE", "Stop processing ..");
-				last if($email_count > $testlimit);
-			}
-		}
+		# if in testlimit mode, check, whether to add this email
+		# or not
+		my $res = handle_testlimit($email_count, $testlimit, $start, $end);	
+		
+		# if handle_testlimit skips email, go to next one
+		next if ($res == 0);
 
 		my $parser = new MIME::Parser;
 
@@ -789,7 +768,7 @@ sub pdf_add_email {
 		my $tb  = PDF::TextBlock->new({
 				pdf       => $pdf,
 				page	  => $page,
-				x	  => $size_x * 0.15,
+				x	  => $size_x * 0.1,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
 				w	  => $size_x - ($size_x * 0.15),
 				h	  => $INFOBOX_HEIGHT * 0.7,
@@ -797,17 +776,15 @@ sub pdf_add_email {
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
-						size => 160,
+						size => $date_font_size * 1.5,
 					}),
 				},
 		});
 
-		$tb->text($subject . "\r\n");
+		$tb->text($subject . " " . $name . " via " . $email);
 		# print subject to mediabox	
 		$tb->apply();
-		$tb->text($name . " via " . $email);
-		my ($endw, $ypos) = $tb->apply();
-		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email' (endw:$endw, ypos:$ypos)");
+		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email'");
 
 	}
 
@@ -825,7 +802,7 @@ sub pdf_add_email {
 				page	  => $page,
 				text	  => $text_as_line,
 				x	  => $size_x * 0.1,
-				y         => $size_y - $INFOBOX_HEIGHT,
+				y         => $size_y - ($INFOBOX_HEIGHT + 100),
 			  	w 	  => $size_x * 0.8, 
 				h	  => $INFOBOX_HEIGHT,
 				lead	  => 50 * 2,
