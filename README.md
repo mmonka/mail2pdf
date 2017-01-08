@@ -7,6 +7,10 @@ This code is based on PDF::API2 and IMAGEMAGICK Librarys.
 The Design for the Infobox is a dirty quick layout. This has to be improved in
 the future.
 
+Licence: GPLv2
+
+===================================================
+
 Help:
 
 ./mbox2pdf --options
