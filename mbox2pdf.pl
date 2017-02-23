@@ -283,7 +283,7 @@ elsif($type eq "imap") {
 		# increase email/message count
 		$msg_cnt++;
 	
-		logging("DEBUG", "IMAP Message $msg_cnt from $msgcount");
+		logging("VERBOSE", "IMAP Message $msg_cnt from $msgcount");
 		
 		# if in testlimit mode, check, whether to add this email
 		# or not
@@ -500,6 +500,7 @@ sub handle_mime_body {
 	
 	my $email_count = shift;
 	my $entity 	= shift;
+	my $nested	= shift || 0;
 
 	my $plain_body 	= "";
 	my $html_body 	= "";
@@ -508,10 +509,19 @@ sub handle_mime_body {
 	$found_video 	= 0;
 
 	# erase global array content
-	@text	= ();
-	@images = ();
+	# only, if not a nested multipart handling
+	if($nested == 0) {
 
-	$text_as_line = "";
+
+		logging("DEBUG", "handle_mime_body: is nested - $nested");
+		
+		@text	= ();
+		@images = ();
+		
+		$text_as_line = "";
+	}
+
+	logging("DEBUG", "handle_mime_body: entity->parts " . $entity->parts);
 
 	# --------------------------------------------
 	# get email body
@@ -527,6 +537,8 @@ sub handle_mime_body {
 			# Content Type of Part
 			# --------------------------------------
 			my $ct =  $subentity->mime_type;
+
+			logging("DEBUG", "handle_mime_body: mime_type " . $ct);
 	
 			# For "singlepart" types (text/*, image/*, etc.), the unencoded body data is referenced 
 			# via a MIME::Body object, accessed via the bodyhandle() method
@@ -572,6 +584,13 @@ sub handle_mime_body {
 			if($ct =~ "video") {
 	
 				$found_video++;
+				logging("VERBOSE", "Part $i - Type '$ct'");
+			}
+
+			# nested multipart in an subentity
+			if( $ct =~"multipart/related" ) {
+
+				handle_mime_body($email_count, $subentity, 1);
 				logging("VERBOSE", "Part $i - Type '$ct'");
 			}
 		}
