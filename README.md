@@ -48,18 +48,19 @@ use Access Token as oauth_token in config.pl
 # -------------------------------------------------
 Libs:
 
-use Data::Dumper;
-use Mail::IMAPClient;
-use Mail::Mbox::MessageParser;
-use MIME::Parser;
-use MIME::Words qw(:all);
-use MIME::Body;
-use MIME::Base64;
-use Date::Parse;
-use Getopt::Long;
-use PDF::API2;
-use Digest::MD5 qw(md5_hex);
-use URI::Escape;
-use Encode;
-use utf8;
-use Image::Magick;
+ use Data::Dumper;<br>
+ use Mail::IMAPClient;<br>
+ use Mail::Mbox::MessageParser;<br>
+ use MIME::Parser;<br>
+ use MIME::Words qw(:all);<br>
+ use MIME::Body;<br>
+ use MIME::Base64;<br>
+ use Date::Parse;<br>
+ use Getopt::Long;<br>
+ use PDF::API2;<br>
+ use PDF::TextBlock;<br>
+ use Digest::MD5 qw(md5_hex);<br>
+ use URI::Escape;<br>
+ use Encode;<br>
+ use utf8;<br>
+ use Image::Magick;<br>
