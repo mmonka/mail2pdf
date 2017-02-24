@@ -41,7 +41,6 @@ my $testlimit = 0;
 my $onlyyear;
 my $start = 0;
 my $end = 0;
-my $text_length = 0;
 my $found_video = 0;
 
 # where to save tmp files
@@ -710,6 +709,10 @@ sub pdf_add_email {
 			Roman  => $pdf->corefont( 'Times',        -encoding => 'latin1' ),
 			Italic => $pdf->corefont( 'Times-Italic', -encoding => 'latin1' ),
 			},
+			Courier => {
+			Bold   => $pdf->corefont( 'Courier-Bold',   -encoding => 'latin1' ),
+			Roman  => $pdf->corefont( 'Courier',        -encoding => 'latin1' ),
+			},
 		   );
 
 	# Make InfoBox variable
@@ -740,7 +743,7 @@ sub pdf_add_email {
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
-		$headline_page_count->font( $font{'Helvetica'}{'Bold'}, $verbose_font_size);
+		$headline_page_count->font( $font{'Courier'}{'Bold'}, $verbose_font_size);
 		$headline_page_count->fillcolor('black');
 		$headline_page_count->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.8) );
 		$headline_page_count->text_center($email_count);
@@ -754,7 +757,7 @@ sub pdf_add_email {
 	
 	# Date
 	my $headline_date = $page->text;
-	$headline_date->font( $font{'Helvetica'}{'Bold'}, $date_font_size);
+	$headline_date->font( $font{'Courier'}{'Bold'}, $date_font_size);
 	$headline_date->fillcolor('black');
 	$headline_date->translate( $size_x * 0.05  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ));
 	$headline_date->text_center($date);
@@ -762,7 +765,7 @@ sub pdf_add_email {
 
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Helvetica'}{'Bold'}, $date_font_size);
+	$headline_year->font( $font{'Courier'}{'Bold'}, $date_font_size);
 	$headline_year->fillcolor('black');
 	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ) );
 	$headline_year->text_right($year);
@@ -795,12 +798,13 @@ sub pdf_add_email {
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
+						font => $pdf->corefont( 'Courier' ),
 						size => $date_font_size * 1.5,
 					}),
 				},
 		});
 
-		$tb->text($subject . " " . $name . " via " . $email);
+		$tb->text($subject . " " . $name . " (" . $email . ")");
 		# print subject to mediabox	
 		$tb->apply();
 		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email'");
@@ -882,10 +886,13 @@ sub pdf_add_email {
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
 	# --------------------------------------------------------
-	my $geometry = sprintf("%ix%i", $size_x - $x_buffer, $text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer) ;
+	my $geometry = sprintf("%ix%i", $size_x - $x_buffer, length($text_as_line) > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
+
+
+		logging("VERBOSE", "Found 1 Picture .. do some calculation");
 
 		# Get Image
 		$image->Read($images[0]);
@@ -897,12 +904,18 @@ sub pdf_add_email {
 		$image->Set(density => DENSITY);
 
 		# Check, if pic size fits content space
-		if( $w > $size_x || $h > ($text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer ) ) {
-	
+		# h: if text is available, Text-Box will be added
+		if( $w > $size_x || $h > (length($text_as_line) > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer ) ) {
 
 			logging("VERBOSE", "resize PIC cause width is greater then $size_x ($geometry)" );
 			$image->Resize( geometry => $geometry, compress => 'none' );
 		}
+		elsif($w < 2000 || $h < 2000) {
+			
+			logging("VERBOSE", "resize PIC cause width is small ($w) then $size_x ($geometry)" );
+			$image->Resize( geometry => $geometry, compress => 'none' );
+		}
+
 
 		# Resized values
 		$w = $image->Get("width");
@@ -913,7 +926,7 @@ sub pdf_add_email {
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
-		my $geo_size_y = ( $text_length > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer);
+		my $geo_size_y = ( length($text_as_line)  > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer);
 
 		if($arrSize == 2) {
 		
@@ -983,7 +996,7 @@ sub pdf_add_email {
 
 			# Add Video Note
 			my $headline_video = $page->text;
-			$headline_video->font( $font{'Helvetica'}{'Bold'}, 100/pt);
+			$headline_video->font( $font{'Courier'}{'Bold'}, 100/pt);
 			$headline_video->fillcolor('black');
 			$headline_video->translate( $size_x - ($size_x * 0.5)  , $size_y - ( 4 * $INFOBOX_HEIGHT ) ) ;
 			$headline_video->text_right("Video");
@@ -1004,7 +1017,7 @@ sub pdf_add_email {
 		my $position_y = int ( $y_buffer / 2);		
 
 		# Space for PIC(s)
-		my $pic_space_y = ($text_length > 0 ? int ($INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer) : int ($INFOBOX_BOTTOM - $y_buffer) );
+		my $pic_space_y = (length($text_as_line) > 0 ? int ($INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer) : int ($INFOBOX_BOTTOM - $y_buffer) );
 	
 		# calculate y position
 		if($h < $pic_space_y ) {
