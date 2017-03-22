@@ -801,9 +801,12 @@ sub pdf_add_email {
                                 lead      => 160 * 1.2,";
 
 		# print Subject and From
+		my $text = sprintf("%s %s (%s)", $subject, $name, $email);	
+		
 		my $tb  = PDF::TextBlock->new({
 				pdf       => $pdf,
 				page	  => $page,
+				text	  => $text,
 				x	  => $size_x * 0.1,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
 				w	  => $size_x - ($size_x * 0.15),
@@ -814,12 +817,11 @@ sub pdf_add_email {
 						pdf  => $pdf,
 						font => $pdf->corefont( 'Courier' ),
 						size => $date_font_size * 0.5,
+						fillcolor => '#000000',
 					}),
 				},
 		});
 
-		my $text = sprintf("%s %s (%s)", $subject, $name, $email);	
-		$tb->text($text);
 		my($endw, $ypos, $overflow)= $tb->apply();
 		logging("VERBOSE", "$endw ,$ypos, '$overflow' .. result for tb-apply()");
 		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email'");
