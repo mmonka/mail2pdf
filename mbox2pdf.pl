@@ -727,13 +727,13 @@ sub pdf_add_email {
 	# Add a box with background color
 	if($ADD_INFOBOX) {
 
-		my $blue_box = $page->gfx;
-		$blue_box->fillcolor('orange');
-		$blue_box->rect( 0 ,            	# left
+		my $color_box = $page->gfx;
+		$color_box->fillcolor('orange');
+		$color_box->rect( 0 ,            	# left
 				$INFOBOX_BOTTOM,   # bottom
 				$size_x,       		# width
 				$INFOBOX_HEIGHT);      # height
-		$blue_box->fill;
+		$color_box->fill;
 
 	# or just space with a line
 	} else {
@@ -793,6 +793,13 @@ sub pdf_add_email {
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
+		# Debug
+		print "                                x         => $size_x * 0.1,\n
+                                y         => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),\n
+                                w         => $size_x - ($size_x * 0.15),\n
+                                h         => $INFOBOX_HEIGHT * 0.7,\n
+                                lead      => 160 * 1.2,";
+
 		# print Subject and From
 		my $tb  = PDF::TextBlock->new({
 				pdf       => $pdf,
@@ -806,7 +813,7 @@ sub pdf_add_email {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
 						font => $pdf->corefont( 'Courier' ),
-						size => $date_font_size * 1.5,
+						size => $date_font_size * 0.5,
 					}),
 				},
 		});
@@ -814,7 +821,7 @@ sub pdf_add_email {
 		my $text = sprintf("%s %s (%s)", $subject, $name, $email);	
 		$tb->text($text);
 		my($endw, $ypos, $overflow)= $tb->apply();
-		logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
+		logging("VERBOSE", "$endw ,$ypos, '$overflow' .. result for tb-apply()");
 		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email'");
 
 	}
