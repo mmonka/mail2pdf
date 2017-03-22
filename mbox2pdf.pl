@@ -47,26 +47,36 @@ my $found_video = 0;
 our $tmp_dir_hash;
 
 # Constant for Page size
-use constant DPI => 600;
-use constant mm => 25.4 / DPI;  # 25.4 mm in an inch, 72 points in an inch
+use constant DPI => 300;
+use constant mm => 25.4 / DPI; 	# 25.4 mm in an inch, 72 points in an inch
 use constant in => 1 / DPI;     # 72 points in an inch
 use constant pt => 1;           # 1 point
-use constant DENSITY => "300x300"; 		# DPI 
+use constant DENSITY => "300"; 		# DPI 
 
 
-# Page Size
-use constant A4_x => 210 / mm;        # x points in an A4 page ( 595.2755 )
-use constant A4_y => 297 / mm;        # y points in an A4 page ( 841.8897 )
-use constant A6_x => 105 / mm;        # x points in an A6 page ( 595.2755 )
-use constant A6_y => 148 / mm;        # y points in an A6 page ( 419.53 )
+# Page Size in mm
+use constant A4_x => 210;        # x points in an A4 page ( 595.2755 )
+use constant A4_y => 297;        # y points in an A4 page ( 841.8897 )
+use constant A5_x => 148;        # x points in an A5 page ( 420 )
+use constant A5_y => 210;        # y points in an A5 page ( 595 )
+use constant A6_x => 105;        # x points in an A6 page ( 298 )
+use constant A6_y => 148;        # y points in an A6 page ( 420 )
 
-# Define Page size
-my $size_x = A4_x;
-my $size_y = A4_y;
+# mediabox - the size of our paper
+my $size_x = A4_x / mm;
+my $size_y = A4_y / mm;
+
+# cropbox - the size we'll cut the paper down to at the end
+my $crop_size = 3 / mm;
+my $crop_left = $crop_size;
+my $crop_bottom = $crop_size;
+my $crop_right = $size_x - $crop_size;
+my $crop_top = $size_y - $crop_size;
 
 # Draw a Infobox with Background, or just a line
 my $ADD_INFOBOX    = "true";
-# Infobox size in Percent of Page
+
+# Infobox size in Percent of Page / 5 %
 my $INFOBOX_BOTTOM = $size_y - ($size_y * 0.05);
 my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
 
@@ -127,7 +137,7 @@ if(!$type or $help) {
 print Dumper \%config if($verbose);
 
 # Some Logging
-logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' Infobox Bottom: $INFOBOX_BOTTOM Infobox Height: '$INFOBOX_HEIGHT' DPI: '".DPI."'");
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' CropSize: '$crop_size' Infobox Bottom: '$INFOBOX_BOTTOM' Height: '$INFOBOX_HEIGHT' DPI: '".DPI."'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -691,12 +701,10 @@ sub pdf_add_email {
 
 	# Add new Page 
 	my $page = $pdf->page;
-	$page->mediabox( $size_x, $size_y );
-
+	
 	# printting details
-	#$page->bleedbox(  5/mm,   5/mm,  100/mm,  143/mm);
-	#$page->cropbox( 7.5 / mm, 7.5 / mm, 97.5 / mm, 140.5 / mm );
-	#$page->artbox  ( 10/mm,  10/mm,   95/mm,  138/mm);
+	$page->mediabox( $size_x, $size_y);
+	#$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
 
 	my %font = (
 			Helvetica => {
@@ -745,7 +753,7 @@ sub pdf_add_email {
 		my $headline_page_count = $page->text;
 		$headline_page_count->font( $font{'Courier'}{'Bold'}, $verbose_font_size);
 		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( $size_x * 0.05  , $size_y - ($INFOBOX_HEIGHT * 0.8) );
+		$headline_page_count->translate( $size_x * 0.1  , $size_y - ($INFOBOX_HEIGHT * 0.9) );
 		$headline_page_count->text_center($email_count);
 	}
 	
@@ -759,7 +767,7 @@ sub pdf_add_email {
 	my $headline_date = $page->text;
 	$headline_date->font( $font{'Courier'}{'Bold'}, $date_font_size);
 	$headline_date->fillcolor('black');
-	$headline_date->translate( $size_x * 0.05  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ));
+	$headline_date->translate( $size_x * 0.1  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
 	$headline_date->text_center($date);
 
 
@@ -767,7 +775,7 @@ sub pdf_add_email {
 	my $headline_year = $page->text;
 	$headline_year->font( $font{'Courier'}{'Bold'}, $date_font_size);
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ) );
+	$headline_year->translate( $size_x - ($size_x * 0.1)  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ) );
 	$headline_year->text_right($year);
 
 	# --------------------------------------	
@@ -784,7 +792,6 @@ sub pdf_add_email {
 			
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
-
 
 		# print Subject and From
 		my $tb  = PDF::TextBlock->new({
@@ -804,9 +811,10 @@ sub pdf_add_email {
 				},
 		});
 
-		$tb->text($subject . " " . $name . " (" . $email . ")");
-		# print subject to mediabox	
-		$tb->apply();
+		my $text = sprintf("%s %s (%s)", $subject, $name, $email);	
+		$tb->text($text);
+		my($endw, $ypos, $overflow)= $tb->apply();
+		logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
 		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email'");
 
 	}
@@ -1028,7 +1036,14 @@ sub pdf_add_email {
 		}
 
 		my $photo_file = $pdf->image_jpeg($file);
-		$photo->image( $photo_file, $position_x, $position_y );
+		
+		#If coordinate transformations have been made (see Coordinate
+		#Transformations above), the position and scale will be relative to the
+		#updated coordinates.  Otherwise, [0,0] will represent the bottom left
+		#corner of the page, and C<$width> and C<$height> will be measured at
+		#72dpi.
+		
+		$photo->image( $photo_file, $position_x, $position_y, $w, $h);
 		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' w x h : '$w x $h' pos_x: '$position_x', pos_y: '$position_y'");
 	}
 	else {
