@@ -767,7 +767,7 @@ sub pdf_add_email {
 	my $headline_date = $page->text;
 	$headline_date->font( $font{'Courier'}{'Roman'}, $date_font_size);
 	$headline_date->fillcolor('black');
-	$headline_date->translate( $size_x * 0.05  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
+	$headline_date->translate( $size_x * 0.08  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
 	$headline_date->text_center($date);
 
 
