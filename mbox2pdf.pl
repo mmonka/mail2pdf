@@ -63,11 +63,11 @@ use constant A6_x => 105;        # x points in an A6 page ( 298 )
 use constant A6_y => 148;        # y points in an A6 page ( 420 )
 
 # mediabox - the size of our paper
-my $size_x = A4_x / mm;
-my $size_y = A4_y / mm;
+my $size_x = A4_x/mm;
+my $size_y = A4_y/mm;
 
 # cropbox - the size we'll cut the paper down to at the end
-my $crop_size = 3 / mm;
+my $crop_size = 3/mm;
 my $crop_left = $crop_size;
 my $crop_bottom = $crop_size;
 my $crop_right = $size_x - $crop_size;
@@ -793,13 +793,6 @@ sub pdf_add_email {
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
-		# Debug
-		print "                                x         => $size_x * 0.1,\n
-                                y         => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),\n
-                                w         => $size_x - ($size_x * 0.15),\n
-                                h         => $INFOBOX_HEIGHT * 0.7,\n
-                                lead      => 160 * 1.2,";
-
 		# print Subject and From
 		my $text = sprintf("%s %s (%s)", $subject, $name, $email);	
 		
@@ -809,14 +802,15 @@ sub pdf_add_email {
 				text	  => $text,
 				x	  => $size_x * 0.1,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
-				w	  => $size_x - ($size_x * 0.15),
+				w	  => $size_x - ($size_x * 1),
 				h	  => $INFOBOX_HEIGHT * 0.7,
 				lead	  => 160 * 1.2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
 						font => $pdf->corefont( 'Courier' ),
-						size => $date_font_size * 0.5,
+						# size => $date_font_size * 0.5,
+						size => 25,
 						fillcolor => '#000000',
 					}),
 				},
@@ -824,7 +818,7 @@ sub pdf_add_email {
 
 		my($endw, $ypos, $overflow)= $tb->apply();
 		logging("VERBOSE", "$endw ,$ypos, '$overflow' .. result for tb-apply()");
-		logging("VERBOSE", "Subject: '$subject' Name: '$name' Email: '$email'");
+		logging("VERBOSE", $text);
 
 	}
 
@@ -945,6 +939,8 @@ sub pdf_add_email {
 
 		my $geo_size_y = ( length($text_as_line)  > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer);
 
+		logging("VERBOSE", "size for pic: '$geo_size_y' text_as_line: '$text_as_line'");
+
 		if($arrSize == 2) {
 		
 			$geometry = sprintf("%sx%s", $size_x , ($geo_size_y)  / 2 );
@@ -1052,7 +1048,7 @@ sub pdf_add_email {
 		#corner of the page, and C<$width> and C<$height> will be measured at
 		#72dpi.
 		
-		$photo->image( $photo_file, $position_x, $position_y, $w, $h);
+		$photo->image( $photo_file, $position_x, $position_y);
 		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' w x h : '$w x $h' pos_x: '$position_x', pos_y: '$position_y'");
 	}
 	else {
