@@ -52,7 +52,7 @@ use constant DPI => 600;
 use constant mm => 25.4 / DPI;  # 25.4 mm in an inch, 72 points in an inch
 use constant in => 1 / DPI;     # 72 points in an inch
 use constant pt => 1;           # 1 point
-use constant DENSITY => "300x300"; 		# DPI 
+use constant DENSITY => "300"; 		# DPI 
 
 
 # Page Size
@@ -89,7 +89,7 @@ our @images;
 our $text_as_line;
 
 # Include some vars from config.pl 
-my %config = do '/Users/markus/git/mail2pdf/config.pl';
+my %config = do '/Users/mmonka/git/mail2pdf/config.pl';
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
@@ -764,7 +764,7 @@ sub pdf_add_email {
 	my $headline_year = $page->text;
 	$headline_year->font( $font{'Helvetica'}{'Bold'}, $date_font_size);
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - ($size_x * 0.01)  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ) );
+	$headline_year->translate( $size_x - ($size_x * 0.015)  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ) );
 	$headline_year->text_right($year);
 
 	# --------------------------------------	
@@ -907,7 +907,7 @@ sub pdf_add_email {
 		# Resized values
 		$w = $image->Get("width");
 		$h = $image->Get("height");
-		
+	
 		$x = $image->Write('jpg:'.$file);
 	}
 	# Multi Image Email
