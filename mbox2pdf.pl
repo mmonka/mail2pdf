@@ -765,17 +765,17 @@ sub pdf_add_email {
 	
 	# Date
 	my $headline_date = $page->text;
-	$headline_date->font( $font{'Courier'}{'Bold'}, $date_font_size);
+	$headline_date->font( $font{'Courier'}{'Roman'}, $date_font_size);
 	$headline_date->fillcolor('black');
-	$headline_date->translate( $size_x * 0.1  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
+	$headline_date->translate( $size_x * 0.05  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
 	$headline_date->text_center($date);
 
 
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Courier'}{'Bold'}, $date_font_size);
+	$headline_year->font( $font{'Courier'}{'Roman'}, $date_font_size);
 	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - ($size_x * 0.015)  , $size_y - ( $INFOBOX_HEIGHT * 0.5 ) );
+	$headline_year->translate( $size_x - ($size_x * 0.02)  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ) );
 	$headline_year->text_right($year);
 
 	# --------------------------------------	
@@ -800,25 +800,23 @@ sub pdf_add_email {
 				pdf       => $pdf,
 				page	  => $page,
 				text	  => $text,
-				x	  => $size_x * 0.1,
+				x	  => $size_x * 0.15,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
-				w	  => $size_x - ($size_x * 1),
+				w	  => $size_x * 0.8,
 				h	  => $INFOBOX_HEIGHT * 0.7,
-				lead	  => 160 * 1.2,
+				lead	  => 50 * 2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
 						font => $pdf->corefont( 'Courier' ),
-						# size => $date_font_size * 0.5,
-						size => 25,
-						fillcolor => '#000000',
+						size => 35,
 					}),
 				},
 		});
 
 		my($endw, $ypos, $overflow)= $tb->apply();
 		logging("VERBOSE", "$endw ,$ypos, '$overflow' .. result for tb-apply()");
-		logging("VERBOSE", $text);
+		logging("VERBOSE", "text: '$text' länge: '" . length($text) . "'");
 
 	}
 
@@ -835,7 +833,7 @@ sub pdf_add_email {
 				pdf       => $pdf,
 				page	  => $page,
 				text	  => $text_as_line,
-				x	  => $size_x * 0.1,
+				x	  => $size_x * 0.15,
 				y         => $size_y - ($INFOBOX_HEIGHT + 100),
 			  	w 	  => $size_x * 0.8, 
 				h	  => $INFOBOX_HEIGHT,
@@ -844,7 +842,7 @@ sub pdf_add_email {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
 						font => $pdf->corefont( 'Courier' ),
-						size => 50,
+						size => 35,
 						fillcolor => '#000000',
 					}),
 				},
