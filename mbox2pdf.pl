@@ -98,7 +98,7 @@ our @images;
 our $text_as_line;
 
 # Include some vars from config.pl 
-my %config = do '/Users/mmonka/git/mail2pdf/config.pl';
+my %config = do '/Users/markus/git/mail2pdf/config.pl';
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
@@ -576,7 +576,6 @@ sub handle_mime_body {
 	
 				my $image = Image::Magick->new(magick=>'JPEG');
 				$image->Read($path);
-
 				my $width  = $image->Get('width');	
 				my $height = $image->Get('height');	
 
@@ -800,11 +799,12 @@ sub pdf_add_email {
 				pdf       => $pdf,
 				page	  => $page,
 				text	  => $text,
+				align     => 'justify',
 				x	  => $size_x * 0.15,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
 				w	  => $size_x * 0.8,
 				h	  => $INFOBOX_HEIGHT * 0.7,
-				lead	  => 50 * 2,
+				lead	  => 35 * 1.2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
@@ -833,16 +833,17 @@ sub pdf_add_email {
 				pdf       => $pdf,
 				page	  => $page,
 				text	  => $text_as_line,
+				align	  => 'justify',
 				x	  => $size_x * 0.15,
-				y         => $size_y - ($INFOBOX_HEIGHT + 100),
-			  	w 	  => $size_x * 0.8, 
+				y         => $size_y - ($INFOBOX_HEIGHT + 20),
+			  	w 	  => $size_x * 0.7, 
 				h	  => $INFOBOX_HEIGHT,
-				lead	  => 50 * 2,
+				lead	  => 25 * 1.2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
 						font => $pdf->corefont( 'Courier' ),
-						size => 35,
+						size => 25,
 						fillcolor => '#000000',
 					}),
 				},
@@ -869,6 +870,7 @@ sub pdf_add_email {
 	$image->set(verbose=>'true') if($verbose);
 	$image->set(debug=>'true') if($debug);
 	$image->set(compression=>'none');
+	
 	
 	# --------------------------------------------------------
 	# Generate perfectly-balanced-photo-gallery	
@@ -929,7 +931,8 @@ sub pdf_add_email {
 		# Resized values
 		$w = $image->Get("width");
 		$h = $image->Get("height");
-	
+
+		$image->Set(colorspace => 'gray');	
 		$x = $image->Write('jpg:'.$file);
 	}
 	# Multi Image Email
@@ -992,7 +995,7 @@ sub pdf_add_email {
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
 		$image->AutoOrient();
-		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none', border => 0,  bordercolor => 'grey');
+		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none', border => 0, colorspace => 'grey');
 		$x = $montage->Write('jpg:'.$file);
 		
 		# for calculate center position
@@ -1073,10 +1076,11 @@ sub handle_text {
 
 	# delete iPhone default footer
 	if($text =~ /.*meinem iPhone gesendet.*/ ||
-	   $text =~/.*Gesendet von meinem iPhone.*/
+	   $text =~ /.*Gesendet von meinem iPhone.*/ ||
+	   $text =~ /.*Gesendet mit der GMX-App aus dem schönsten Bundesland der Welt!.*/
 	  ) {
 
-		logging("VERBOSE", "ignore iPhone default footer");
+		logging("VERBOSE", "ignore some Emailfooter ..");
 		return undef;
 	}
 
