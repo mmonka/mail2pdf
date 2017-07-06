@@ -63,8 +63,8 @@ use constant A6_x => 105;        # x points in an A6 page ( 298 )
 use constant A6_y => 148;        # y points in an A6 page ( 420 )
 
 # mediabox - the size of our paper
-my $size_x = A4_x/mm;
-my $size_y = A4_y/mm;
+my $size_x = A5_x/mm;
+my $size_y = A5_y/mm;
 
 # cropbox - the size we'll cut the paper down to at the end
 my $crop_size = 3/mm;
@@ -705,22 +705,10 @@ sub pdf_add_email {
 	$page->mediabox( $size_x, $size_y);
 	#$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
 
-	my %font = (
-			Helvetica => {
-			Bold   => $pdf->corefont( 'Helvetica-Bold',    -encoding => 'latin1' ),
-			Roman  => $pdf->corefont( 'Helvetica',         -encoding => 'latin1' ),
-			Italic => $pdf->corefont( 'Helvetica-Oblique', -encoding => 'latin1' ),
-			},
-			Times => {
-			Bold   => $pdf->corefont( 'Times-Bold',   -encoding => 'latin1' ),
-			Roman  => $pdf->corefont( 'Times',        -encoding => 'latin1' ),
-			Italic => $pdf->corefont( 'Times-Italic', -encoding => 'latin1' ),
-			},
-			Courier => {
-			Bold   => $pdf->corefont( 'Courier-Bold',   -encoding => 'latin1' ),
-			Roman  => $pdf->corefont( 'Courier',        -encoding => 'latin1' ),
-			},
-		   );
+
+	## Embed a TTF
+	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
 
 	# Make InfoBox variable
 	# Add a box with background color
@@ -750,7 +738,7 @@ sub pdf_add_email {
 	if($verbose || $debug) {
 
 		my $headline_page_count = $page->text;
-		$headline_page_count->font( $font{'Courier'}{'Bold'}, $verbose_font_size);
+		$headline_page_count->font( $courier_bold , $verbose_font_size);
 		$headline_page_count->fillcolor('black');
 		$headline_page_count->translate( $size_x * 0.1  , $size_y - ($INFOBOX_HEIGHT * 0.9) );
 		$headline_page_count->text_center($email_count);
@@ -764,7 +752,7 @@ sub pdf_add_email {
 	
 	# Date
 	my $headline_date = $page->text;
-	$headline_date->font( $font{'Courier'}{'Roman'}, $date_font_size);
+	$headline_date->font( $courier , $date_font_size);
 	$headline_date->fillcolor('black');
 	$headline_date->translate( $size_x * 0.08  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
 	$headline_date->text_center($date);
@@ -772,7 +760,7 @@ sub pdf_add_email {
 
 	# Year
 	my $headline_year = $page->text;
-	$headline_year->font( $font{'Courier'}{'Roman'}, $date_font_size);
+	$headline_year->font( $courier, $date_font_size);
 	$headline_year->fillcolor('black');
 	$headline_year->translate( $size_x - ($size_x * 0.02)  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ) );
 	$headline_year->text_right($year);
@@ -808,7 +796,7 @@ sub pdf_add_email {
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
-						font => $pdf->corefont( 'Courier' ),
+						font => $courier,
 						size => 35,
 					}),
 				},
@@ -835,15 +823,15 @@ sub pdf_add_email {
 				text	  => $text_as_line,
 				align	  => 'justify',
 				x	  => $size_x * 0.15,
-				y         => $size_y - ($INFOBOX_HEIGHT + 20),
+				y         => $size_y - ($INFOBOX_HEIGHT + 50),
 			  	w 	  => $size_x * 0.7, 
 				h	  => $INFOBOX_HEIGHT,
-				lead	  => 25 * 1.2,
+				lead	  => 30 * 1.2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
 						pdf  => $pdf,
-						font => $pdf->corefont( 'Courier' ),
-						size => 25,
+						font => $courier,
+						size => 30,
 						fillcolor => '#000000',
 					}),
 				},
@@ -932,7 +920,8 @@ sub pdf_add_email {
 		$w = $image->Get("width");
 		$h = $image->Get("height");
 
-		$image->Set(colorspace => 'gray');	
+		logging("VERBOSE", "Logging profile icc: " . $image->get('icc') . " " );
+
 		$x = $image->Write('jpg:'.$file);
 	}
 	# Multi Image Email
@@ -1010,7 +999,7 @@ sub pdf_add_email {
 
 			# Add Video Note
 			my $headline_video = $page->text;
-			$headline_video->font( $font{'Courier'}{'Bold'}, 100/pt);
+			$headline_video->font( $courier_bold, 100/pt);
 			$headline_video->fillcolor('black');
 			$headline_video->translate( $size_x - ($size_x * 0.5)  , $size_y - ( 4 * $INFOBOX_HEIGHT ) ) ;
 			$headline_video->text_right("Video");
@@ -1077,7 +1066,7 @@ sub handle_text {
 	# delete iPhone default footer
 	if($text =~ /.*meinem iPhone gesendet.*/ ||
 	   $text =~ /.*Gesendet von meinem iPhone.*/ ||
-	   $text =~ /.*Gesendet mit der GMX-App aus dem schönsten Bundesland der Welt!.*/
+	   $text =~ /.*Gesendet mit der GMX-App.*/
 	  ) {
 
 		logging("VERBOSE", "ignore some Emailfooter ..");
