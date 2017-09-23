@@ -207,6 +207,10 @@ if($type eq "mbox") {
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
 
+	## Embed a TTF
+	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+
 	# --------------------------------------------------
 	# This is the main loop. It's executed once for each email
 	# --------------------------------------------------
@@ -275,6 +279,10 @@ elsif($type eq "imap") {
 	# create a pdf file / pdf object $pdf 
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
+	
+	## Embed a TTF
+	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
 
 	# import messages
 	my @msgs = $imap->messages() or die "Could not messages: $@\n";
@@ -339,9 +347,9 @@ elsif($type eq "imap") {
                 handle_mime_body($i,$entity);
 
 		# add email to pdf
-                pdf_add_email($pdf, $header, $msg_cnt);
+                pdf_add_email($pdf, $header, $courier, $courier_bold, $msg_cnt);
 
-
+		undef $parser;
 	}
 
     	pdf_file($pdf, "close");
@@ -369,6 +377,10 @@ elsif($type eq "s3mount") {
 	# create a pdf file / pdf object $pdf 
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
+	
+	## Embed a TTF
+	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
 
 	# generate a /tmp/ subdirectory .. 
 	$tmp_dir_hash = md5_hex( $mount . $pdf . $hash );
@@ -414,7 +426,7 @@ elsif($type eq "s3mount") {
 			my $error = ($@ || $parser->last_error);
 
 			handle_mime_body($msg_cnt, $entity);
-			pdf_add_email($pdf, $header, $msg_cnt);
+			pdf_add_email($pdf, $header, $courier, $courier_bold, $msg_cnt);
 
 		} elsif(-d $dir . "/" . $_){
 			logging("VERBOSE", $_ . "   : folder\n");
@@ -668,6 +680,8 @@ sub pdf_add_email {
 
 	my $pdf		= shift;
 	my $header 	= shift;
+	my $courier     = shift;
+	my $courier_bold = shift;
 	my $email_count = shift;
 
 	# get date headers
@@ -706,9 +720,6 @@ sub pdf_add_email {
 	#$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
 
 
-	## Embed a TTF
-	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
-	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
 
 	# Make InfoBox variable
 	# Add a box with background color
