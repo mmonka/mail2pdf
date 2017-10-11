@@ -299,7 +299,8 @@ elsif($type eq "imap") {
 	{
 		# increase email/message count
 		$msg_cnt++;
-	
+
+		logging("VERBOSE", "++++++++++++++++++++++++++++++++++++++++++++++++++++\n");	
 		logging("VERBOSE", "IMAP Message $msg_cnt from $msgcount");
 		
 		# if in testlimit mode, check, whether to add this email
@@ -310,6 +311,7 @@ elsif($type eq "imap") {
 		next if ($res == 0);
 
 		# if in onlyyear mode, check if email year match
+		logging("DEBUG", "Fetch Date Header"); 
 		my $date = $imap->get_header($i, "Date");
 		
 		# return 0: ignore | return 1: match
@@ -322,6 +324,7 @@ elsif($type eq "imap") {
 		}
 
 		# get message content	
+		logging("DEBUG", "Fetch message"); 
 		my $content = $imap->message_string($i);
 		
 		# start MIME Parser
@@ -510,7 +513,6 @@ sub handle_testlimit {
 				}
 			}
 		}
-		
 		return 1;
 }
 
@@ -791,13 +793,10 @@ sub pdf_add_email {
 			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
 		}
 
-		# print Subject and From
-		my $text = sprintf("%s %s (%s)", $subject, $name, $email);	
-		
 		my $tb  = PDF::TextBlock->new({
 				pdf       => $pdf,
 				page	  => $page,
-				text	  => $text,
+				text	  => $subject,
 				align     => 'justify',
 				x	  => $size_x * 0.15,
 				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
@@ -814,9 +813,8 @@ sub pdf_add_email {
 		});
 
 		my($endw, $ypos, $overflow)= $tb->apply();
-		logging("VERBOSE", "$endw ,$ypos, '$overflow' .. result for tb-apply()");
-		logging("VERBOSE", "text: '$text' länge: '" . length($text) . "'");
-
+		logging("VERBOSE", "X:$endw,Y:$ypos, '$overflow' .. result for tb-apply()");
+		logging("VERBOSE", "Subject: '$subject' länge: '" . length($subject) . "'");
 	}
 
 	# ----------------------------------------------------------------
@@ -877,7 +875,7 @@ sub pdf_add_email {
 	my $arrSize = @images;
 
 	# this will be the montage file
-	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex($ss.$from.$date.$name) . ".jpg";
+	my $file = "/tmp/" . $tmp_dir_hash . "/" . md5_hex(rand($ss).$from.$date.$name.rand(50)) . ".jpg";
 
 	my $x;
 	my $tile;
@@ -930,8 +928,6 @@ sub pdf_add_email {
 		# Resized values
 		$w = $image->Get("width");
 		$h = $image->Get("height");
-
-		logging("VERBOSE", "Logging profile icc: " . $image->get('icc') . " " );
 
 		$x = $image->Write('jpg:'.$file);
 	}
@@ -1025,6 +1021,9 @@ sub pdf_add_email {
 
 	# check, that file exists
 	if (-e $file) {
+
+
+		logging("VERBOSE", "File exists '$file'");
 
 		# Calculate x/y Position, so Image is "center" and fit nicly
 		my $position_x = int (($size_x - $w ) / 2); 
