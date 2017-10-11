@@ -300,8 +300,6 @@ elsif($type eq "imap") {
 		# increase email/message count
 		$msg_cnt++;
 
-		logging("VERBOSE", "++++++++++++++++++++++++++++++++++++++++++++++++++++\n");	
-		logging("VERBOSE", "IMAP Message $msg_cnt from $msgcount");
 		
 		# if in testlimit mode, check, whether to add this email
 		# or not
@@ -309,6 +307,9 @@ elsif($type eq "imap") {
 		
 		# if handle_testlimit skips email, go to next one
 		next if ($res == 0);
+
+		logging("VERBOSE", "\n++++++++++++++++++++++++++++++++++++++++++++++++++++");	
+		logging("VERBOSE", "IMAP Message $msg_cnt from $msgcount");
 
 		# if in onlyyear mode, check if email year match
 		logging("DEBUG", "Fetch Date Header"); 
@@ -832,9 +833,9 @@ sub pdf_add_email {
 				text	  => $text_as_line,
 				align	  => 'justify',
 				x	  => $size_x * 0.15,
-				y         => $size_y - ($INFOBOX_HEIGHT + 50),
+				y         => $size_y - ( $INFOBOX_HEIGHT + 50),
 			  	w 	  => $size_x * 0.7, 
-				h	  => $INFOBOX_HEIGHT,
+				h	  => (length($text_as_line) > 280 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT ),
 				lead	  => 30 * 1.2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
@@ -847,15 +848,17 @@ sub pdf_add_email {
 		});
 
 		my($endw, $ypos, $overflow)= $tb->apply();
-
+		
 		logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
+
+
 
 		# add another line	
 		my $line = $page->gfx;
 		$line->strokecolor('black');
 		$line->linewidth(5);
-		$line->move( 0, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
-		$line->line( $size_x, $INFOBOX_BOTTOM - $INFOBOX_HEIGHT );
+		$line->move( 0, $INFOBOX_BOTTOM - (length($text_as_line) > 280 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT )  );
+		$line->line( $size_x, $INFOBOX_BOTTOM - (length($text_as_line) > 280 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT )  );
 		$line->stroke;
 	}
 	
