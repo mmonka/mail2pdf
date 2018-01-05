@@ -42,7 +42,7 @@ my $type;
 my $hash;
 my $help;
 my $testlimit = 0;
-my $onlyyear;
+my $year;
 my $start = 0;
 my $end = 0;
 my $found_video = 0;
@@ -122,7 +122,7 @@ GetOptions(	"mboxfile=s" => \$mboxfile, # string
 		"filename=s" => \$filename,
 		"path=s" => \$path,
             	"testlimit=s" => \$testlimit,
-            	"onlyyear=i" => \$onlyyear,
+            	"year=i" => \$year,
 	  ) # flag
 or die("Error in command line arguments\n");
 
@@ -134,7 +134,7 @@ if(!$type or $help) {
 	print "--debug                      enable debugging\n";
     	print "--type (mbox|imap|s3mount)       choose whether you want to use a local mbox file,a remote imap account or a directory with files per each email\n";
 	print "--testlimit=Start(,End)      choose at which position you want to start to generate the pdf file\n";
-	print "--onlyyear=YEAR		    only print YEAR Content to PDF\n";
+	print "--year=YEAR		    only print YEAR Content to PDF\n";
 	exit;
 }
 
@@ -315,16 +315,16 @@ elsif($type eq "imap") {
 		logging("VERBOSE", "\n++++++++++++++++++++++++++++++++++++++++++++++++++++");	
 		logging("VERBOSE", "IMAP Message $msg_cnt from $msgcount");
 
-		# if in onlyyear mode, check if email year match
+		# if in year mode, check if email year match
 		logging("DEBUG", "Fetch Date Header"); 
 		my $date = $imap->get_header($i, "Date");
 		
 		# return 0: ignore | return 1: match
-		my $res_hoy = handle_option_year($onlyyear, $date);
+		my $res_hoy = handle_option_year($year, $date);
 		
 		if($res_hoy == 0) {
 
-			logging("DEBUG", "handle_option_year: ignore email based on year ($onlyyear)");
+			logging("DEBUG", "handle_option_year: ignore email based on year ($year)");
 			next;
 		}
 
@@ -464,7 +464,7 @@ exit;
 # --------------------------------------
 sub handle_option_year {
 
-	my ($onlyyear, $date) = @_;
+	my ($year, $date) = @_;
 
 	# extract year from email date line (RFC822 format)
 	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
@@ -472,9 +472,9 @@ sub handle_option_year {
 	# Have to add offset 1900
 	$year = $year + 1900;
 	
-	if($onlyyear && $onlyyear != $year ) {
+	if($year && $year != $year ) {
 
-		logging("DEBUG", "option 'onlyyear - $onlyyear' is active and this email is from $year - skip");
+		logging("DEBUG", "option 'year - $year' is active and this email is from $year - skip");
 		return 0;
 	}
 
