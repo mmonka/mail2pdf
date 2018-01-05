@@ -467,14 +467,14 @@ sub handle_option_year {
 	my ($year, $date) = @_;
 
 	# extract year from email date line (RFC822 format)
-	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
+	my ($ss,$mm,$hh,$day,$month,$emailyear,$zone) = strptime($date);
 
 	# Have to add offset 1900
-	$year = $year + 1900;
+	$emailyear = $emailyear + 1900;
 	
-	if($year && $year != $year ) {
+	if($emailyear && $emailyear != $year ) {
 
-		logging("DEBUG", "option 'year - $year' is active and this email is from $year - skip");
+		logging("VERBOSE", "option 'year - $year' is active and this email is from $year - skip");
 		return 0;
 	}
 
@@ -696,9 +696,9 @@ sub pdf_add_email {
 
 	# Convert Date
 	# the year is the number of years since 1900, and the month is zero-based (0 = January)
-	my ($ss,$mm,$hh,$day,$month,$year,$zone) = strptime($date);
+	my ($ss,$mm,$hh,$day,$month,$emailyear,$zone) = strptime($date);
 	$date = sprintf("%d.%d", $day, $month + 1);
-	$year = $year + 1900;
+	$emailyear = $emailyear + 1900;
 
 
 	# get more headers
@@ -781,7 +781,7 @@ sub pdf_add_email {
 	$headline_year->font( $courier, $date_font_size);
 	$headline_year->fillcolor('black');
 	$headline_year->translate( $size_x - ($size_x * 0.02)  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ) );
-	$headline_year->text_right($year);
+	$headline_year->text_right($emailyear);
 
 	# --------------------------------------	
 	# print subject
