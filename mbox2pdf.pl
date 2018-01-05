@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 
+# Mail and MIME Handling
 use Mail::IMAPClient;
 use Mail::Mbox::MessageParser;
 use MIME::Parser;
@@ -11,14 +12,17 @@ use MIME::Words qw(:all);
 use MIME::Body;
 use MIME::Base64;
 
+# Other stuff
 use Date::Parse;
 use Getopt::Long;
+use File::Path;
+use Digest::MD5 qw(md5_hex); 
 
+# PDF stuff
 use PDF::API2;
 use PDF::TextBlock;
 
-use Digest::MD5 qw(md5_hex); 
-
+# Encoding
 use URI::Escape;
 use Encode;
 use utf8;
@@ -660,8 +664,8 @@ sub pdf_file {
 		$pdf->save;
 		$pdf->end;
 
-		logging("VERBOSE", "Remove /tmp/" . $tmp_dir_hash);
-		rmdir "/tmp/".$tmp_dir_hash or warn("Could not delete, not empty");
+		logging("VERBOSE", "Remove /tmp/" . $tmp_dir_hash . "/");
+		rmtree "/tmp/".$tmp_dir_hash."/" or warn("Could not delete, not empty");
 
 	}
 	elsif($task eq "delete") {
@@ -814,19 +818,21 @@ sub pdf_add_email {
 		});
 
 		my($endw, $ypos, $overflow)= $tb->apply();
-		logging("VERBOSE", "X:$endw,Y:$ypos, '$overflow' .. result for tb-apply()");
-		logging("VERBOSE", "Subject: '$subject' länge: '" . length($subject) . "'");
+		logging("VERBOSE", "subject - X:$endw,Y:$ypos, '$overflow' .. result for tb-apply()");
+		logging("VERBOSE", "subject: '$subject' länge: '" . length($subject) . "'");
 	}
 
 	# ----------------------------------------------------------------
 	# ContentText
 	# ----------------------------------------------------------------
-	if(length($text_as_line) > 0) {
+	my $text_length = length($text_as_line);
 
-		logging("VERBOSE", "Text: '$text_as_line' length: '" . length($text_as_line) . "'");
+	if($text_length > 0) {
+
+
+		logging("VERBOSE", "Text: '$text_as_line' length: '" . $text_length . "'");
 
 		my $text  = $page->text;
-
 		my $tb= PDF::TextBlock->new({
 				pdf       => $pdf,
 				page	  => $page,
@@ -835,7 +841,7 @@ sub pdf_add_email {
 				x	  => $size_x * 0.15,
 				y         => $size_y - ( $INFOBOX_HEIGHT + 50),
 			  	w 	  => $size_x * 0.7, 
-				h	  => (length($text_as_line) > 280 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT ),
+				h	  => $text_length > 150 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT,
 				lead	  => 30 * 1.2,
 				fonts     => {
 					default => PDF::TextBlock::Font->new({
@@ -849,17 +855,19 @@ sub pdf_add_email {
 
 		my($endw, $ypos, $overflow)= $tb->apply();
 		
-		logging("VERBOSE", "$endw ,$ypos, $overflow .. result for tb-apply()");
+		logging("VERBOSE", "text - x:$endw ,y:$ypos, $overflow .. result for tb-apply()");
+	
+		my $y_value  = calculate_y_value(length($text_as_line), "line");
 
-
-
-		# add another line	
+		# add another line depending on text_length	
 		my $line = $page->gfx;
 		$line->strokecolor('black');
 		$line->linewidth(5);
-		$line->move( 0, $INFOBOX_BOTTOM - (length($text_as_line) > 280 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT )  );
-		$line->line( $size_x, $INFOBOX_BOTTOM - (length($text_as_line) > 280 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT )  );
+		$line->move( 0, $y_value );
+		$line->line( $size_x, $y_value );
 		$line->stroke;
+
+		logging("VERBOSE", "Adding black line add y '$y_value'");
 	}
 	
 	# --------------------------------------------------------
@@ -896,14 +904,16 @@ sub pdf_add_email {
 	# --------------------------------------------------------
 	# Resize to fit under the info/mediabox
 	# thats why we sub 50 from size_y
+	# y start point depends on text length
 	# --------------------------------------------------------
-	my $geometry = sprintf("%ix%i", $size_x - $x_buffer, length($text_as_line) > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer) ;
+	my $y_value  = calculate_y_value(length($text_as_line), "pic");
+	my $geometry = sprintf("%ix%i", $size_x - $x_buffer, $y_value ) ;
 	
 	# Single Image Email
 	if($arrSize == 1) {
 
 
-		logging("VERBOSE", "Found 1 Picture .. do some calculation");
+		logging("VERBOSE", "Found 1 Picture .. do some magic .. ");
 
 		# Get Image
 		$image->Read($images[0]);
@@ -916,9 +926,9 @@ sub pdf_add_email {
 
 		# Check, if pic size fits content space
 		# h: if text is available, Text-Box will be added
-		if( $w > $size_x || $h > (length($text_as_line) > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer ) ) {
+		if( $w > $size_x || $h > $y_value ) {
 
-			logging("VERBOSE", "resize PIC cause width is greater then $size_x ($geometry)" );
+			logging("VERBOSE", "resize PIC cause width w '$w' is greater then size_x '$size_x' ($geometry)" );
 			$image->Resize( geometry => $geometry, compress => 'none' );
 		}
 		elsif($w < 2000 || $h < 2000) {
@@ -1033,14 +1043,14 @@ sub pdf_add_email {
 		my $position_y = int ( $y_buffer / 2);		
 
 		# Space for PIC(s)
-		my $pic_space_y = (length($text_as_line) > 0 ? int ($INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer) : int ($INFOBOX_BOTTOM - $y_buffer) );
+		my $pic_space_y = calculate_y_value(length($text_as_line), "line");
 	
 		# calculate y position
 		if($h < $pic_space_y ) {
 
 			# center for y axis
 			$position_y = int ( $pic_space_y - $h) / 2;
-			logging("VERBOSE", "Calculate new y position '$position_y' $pic_space_y");
+			logging("VERBOSE", "Calculate new y position '$position_y' $pic_space_y h '$h'");
 		}
 
 		my $photo_file = $pdf->image_jpeg($file);
@@ -1092,6 +1102,44 @@ sub handle_text {
 
 	return $text;
 }
+
+# -----------------------------------------------
+# Calculate y_value (for line and new pic size)
+# depending on the text length
+# -----------------------------------------------
+sub calculate_y_value {
+
+	my ($text_length,$type) = @_;
+
+	# Set pic under the line
+	my $offset = 0;
+	$offset =+ $y_buffer if($type eq "pic");
+
+	logging("VERBOSE", "calculate_y_value offset '$offset' type '$type'");
+
+	my $y_value = 0;
+	if($text_length > 0) {
+	
+ 		if( $text_length > 150) {
+
+			$y_value =  $INFOBOX_BOTTOM - ( $INFOBOX_HEIGHT * 2) - $offset;
+			logging("VERBOSE", "Text is over 150 letters. y_value '$y_value'"); 
+		}
+		else {
+
+	 		$y_value =  $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $offset;
+			logging("VERBOSE", "Text exits. y_value '$y_value'"); 
+		}
+
+	}
+	else {
+		logging("VERBOSE", "No text exits. y_value '$y_value'"); 
+		$y_value = $INFOBOX_BOTTOM - $offset;
+	}
+
+	return $y_value;
+}
+
 
 # --------------------------------------------------------
 # optimize setting the text/subject into a block  
