@@ -64,3 +64,6 @@ Libs:
  use Encode;<br>
  use utf8;<br>
  use Image::Magick;<br>
+
+
+Example: http://rick.measham.id.au/pdf-api2/
