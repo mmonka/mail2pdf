@@ -42,7 +42,7 @@ my $type;
 my $hash;
 my $help;
 my $testlimit = 0;
-my $year;
+my $year = -1;
 my $start = 0;
 my $end = 0;
 my $found_video = 0;
@@ -74,8 +74,8 @@ my $size_y = A5_y/mm;
 my $crop_size = 3/mm;
 my $crop_left = $crop_size;
 my $crop_bottom = $crop_size;
-my $crop_right = $size_x - $crop_size;
-my $crop_top = $size_y - $crop_size;
+my $crop_right = $size_x + $crop_size;
+my $crop_top = $size_y + $crop_size;
 
 # Draw a Infobox with Background, or just a line
 my $ADD_INFOBOX    = "true";
@@ -93,7 +93,9 @@ my $headline_font_size =  120/pt;
 my $date_font_size = 60/pt;
 my $from_font_size = 30/pt;
 my $text_font_size = "";
-my $verbose_font_size = 40/pt;
+my $verbose_font_size = 30/pt;
+
+my $scale = 1;
 
 # some arrays
 our @text;
@@ -141,7 +143,7 @@ if(!$type or $help) {
 print Dumper \%config if($verbose);
 
 # Some Logging
-logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' CropSize: '$crop_size' Infobox Bottom: '$INFOBOX_BOTTOM' Height: '$INFOBOX_HEIGHT' DPI: '".DPI."'");
+logging("VERBOSE", "Size: x: '$size_x' y: '$size_y' CropSize: '$crop_size' Infobox Bottom: '$INFOBOX_BOTTOM' Height: '$INFOBOX_HEIGHT' DPI: '".DPI."' scale '$scale'");
 
 # Testlimit is set
 if($testlimit =~ /([\d]+),([\d]+)/) {
@@ -466,6 +468,9 @@ sub handle_option_year {
 
 	my ($year, $date) = @_;
 
+	# no getopts for value year
+	return -1 if($year == -1);
+
 	# extract year from email date line (RFC822 format)
 	my ($ss,$mm,$hh,$day,$month,$emailyear,$zone) = strptime($date);
 
@@ -698,35 +703,34 @@ sub pdf_add_email {
 	# the year is the number of years since 1900, and the month is zero-based (0 = January)
 	my ($ss,$mm,$hh,$day,$month,$emailyear,$zone) = strptime($date);
 	$date = sprintf("%d.%d", $day, $month + 1);
+	chomp($date);
 	$emailyear = $emailyear + 1900;
 
 
-	# get more headers
+	# get more headers and check content if neccessary
 	my $subject = $header->get('Subject');
+
 	my $to = $header->get('To');
-	my $from = $header->get('From');
-	my $contenttype = $header->get("Content-Type");
-	
-	# delete newlines
 	chomp($to);
+
+	my $from = $header->get('From');
 	chomp($from);
-	chomp($date);
+
+	my ($name, $email) = check_from($from);
+
+	my $contenttype = $header->get("Content-Type");
 	chomp($contenttype);
 	
-
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
 
-	my ($name, $email) = check_from($from);
 
 	# Add new Page 
 	my $page = $pdf->page;
 	
 	# printting details
-	$page->mediabox( $size_x, $size_y);
-	#$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
-
-
+	$page->mediabox( 0,0, $size_x, $size_y);
+	$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
 
 	# Make InfoBox variable
 	# Add a box with background color
@@ -947,7 +951,8 @@ sub pdf_add_email {
 	# Multi Image Email
 	elsif ($arrSize > 1) {
 
-		my $geo_size_y = ( length($text_as_line)  > 0 ? $INFOBOX_BOTTOM - $INFOBOX_HEIGHT - $y_buffer : $INFOBOX_BOTTOM - $y_buffer);
+		# is calculate in y_value / see above
+		my $geo_size_y = $y_value;
 
 		logging("VERBOSE", "size for pic: '$geo_size_y' text_as_line: '$text_as_line'");
 
@@ -1061,8 +1066,8 @@ sub pdf_add_email {
 		#corner of the page, and C<$width> and C<$height> will be measured at
 		#72dpi.
 		
-		$photo->image( $photo_file, $position_x, $position_y);
-		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' w x h : '$w x $h' pos_x: '$position_x', pos_y: '$position_y'");
+		$photo->image( $photo_file, $position_x, $position_y, $scale);
+		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' w x h : '$w x $h' pos_x: '$position_x', pos_y: '$position_y' scale: '$scale'");
 	}
 	else {
 
