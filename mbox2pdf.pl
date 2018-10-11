@@ -51,9 +51,11 @@ my $found_video = 0;
 our $tmp_dir_hash;
 
 # Constant for Page size
-use constant DPI => 300;
-use constant mm => 25.4 / DPI; 	# 25.4 mm in an inch, 72 points in an inch
-use constant in => 1 / DPI;     # 72 points in an inch
+#These make measurements easier when using PDF::API2. PDF primarily uses points to measure sizes and distances, so if we define these we can use them later to use other units. For example 5/mm returns 5 millimeters in points. The points (pt) is given just so we can clearly state when we're talking in points.
+#Note that these are not necessary, but make it easier to create PDF files in perl. For the technically minded: There are 72 postscript points in an inch and there are 25.4 millimeters in an inch.
+use constant DPI => 300;	# how many postscript points in an inch
+use constant mm => 25.4 / DPI; 	# 1 mm in points 
+use constant in => 1 / DPI;     # how many points in an inch
 use constant pt => 1;           # 1 point
 use constant DENSITY => "300"; 		# DPI 
 
@@ -66,16 +68,16 @@ use constant A5_y => 210;        # y points in an A5 page ( 595 )
 use constant A6_x => 105;        # x points in an A6 page ( 298 )
 use constant A6_y => 148;        # y points in an A6 page ( 420 )
 
-# mediabox - the size of our paper
-my $size_x = A5_x/mm;
-my $size_y = A5_y/mm;
+# mediabox - the size of our paper in points
+my $size_x = A4_x/mm;
+my $size_y = A4_y/mm;
 
 # cropbox - the size we'll cut the paper down to at the end
 my $crop_size = 3/mm;
 my $crop_left = $crop_size;
 my $crop_bottom = $crop_size;
-my $crop_right = $size_x + $crop_size;
-my $crop_top = $size_y + $crop_size;
+my $crop_right = $size_x - $crop_size;
+my $crop_top = $size_y - $crop_size;
 
 # Draw a Infobox with Background, or just a line
 my $ADD_INFOBOX    = "true";
@@ -455,6 +457,7 @@ else {
    
 	print "Error: wrong type '$type'\n";
  	print "Please choose --type imap|mbox\n";
+	exit;
 }
 
 print "File was generated. Have fun\n";
@@ -479,7 +482,7 @@ sub handle_option_year {
 	
 	if($emailyear && $emailyear != $year ) {
 
-		logging("VERBOSE", "option 'year - $year' is active and this email is from $year - skip");
+		logging("VERBOSE", "option 'year - $year' is active and this email is from '$emailyear' - skip");
 		return 0;
 	}
 
@@ -590,6 +593,10 @@ sub handle_mime_body {
 						
 						$text_as_line = $text_as_line . $text . " ";	
 						logging("VERBOSE", "Part '$i' - Adding Content Type '$ct' '$text'");					
+					}
+					else {
+						logging("VERBOSE", "skip Mailfooter ..");
+						last;
 					}
 				}
 			}
@@ -730,7 +737,7 @@ sub pdf_add_email {
 	
 	# printting details
 	$page->mediabox( 0,0, $size_x, $size_y);
-	$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
+	#$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
 
 	# Make InfoBox variable
 	# Add a box with background color
@@ -926,8 +933,6 @@ sub pdf_add_email {
 		$w = $image->Get("width");
 		$h = $image->Get("height");
 
-		$image->Set(density => DENSITY);
-
 		# Check, if pic size fits content space
 		# h: if text is available, Text-Box will be added
 		if( $w > $size_x || $h > $y_value ) {
@@ -946,6 +951,7 @@ sub pdf_add_email {
 		$w = $image->Get("width");
 		$h = $image->Get("height");
 
+		$image->Set(density => DENSITY);
 		$x = $image->Write('jpg:'.$file);
 	}
 	# Multi Image Email
@@ -1009,6 +1015,8 @@ sub pdf_add_email {
 		# Image Montage
 		# Geometry: It defines the size of the individual thumbnail images, and the spacing between them
 		$image->AutoOrient();
+		$image->Set(density => DENSITY);
+
 		my $montage = $image->Montage(geometry => $geometry , tile => $tile, density => DENSITY, quality => 100, compress => 'none', border => 0, colorspace => 'grey');
 		$x = $montage->Write('jpg:'.$file);
 		
@@ -1094,7 +1102,8 @@ sub handle_text {
 	# delete iPhone default footer
 	if($text =~ /.*meinem iPhone gesendet.*/ ||
 	   $text =~ /.*Gesendet von meinem iPhone.*/ ||
-	   $text =~ /.*Gesendet mit der GMX-App.*/
+	   $text =~ /.*Gesendet mit der GMX-App.*/ ||
+	   $text =~/.*HILLER & FRIENDS.*/
 	  ) {
 
 		logging("VERBOSE", "ignore some Emailfooter ..");
@@ -1118,7 +1127,7 @@ sub calculate_y_value {
 
 	# Set pic under the line
 	my $offset = 0;
-	$offset =+ $y_buffer if($type eq "pic");
+	$offset += $y_buffer if($type eq "pic");
 
 	logging("VERBOSE", "calculate_y_value offset '$offset' type '$type'");
 
