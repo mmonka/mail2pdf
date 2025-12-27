@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use lib "$ENV{HOME}/perl5/lib/perl5";
 use Data::Dumper;
 
 # Mail and MIME Handling
@@ -53,11 +54,11 @@ our $tmp_dir_hash;
 # Constant for Page size
 #These make measurements easier when using PDF::API2. PDF primarily uses points to measure sizes and distances, so if we define these we can use them later to use other units. For example 5/mm returns 5 millimeters in points. The points (pt) is given just so we can clearly state when we're talking in points.
 #Note that these are not necessary, but make it easier to create PDF files in perl. For the technically minded: There are 72 postscript points in an inch and there are 25.4 millimeters in an inch.
-use constant DPI => 300;	# how many postscript points in an inch
-use constant mm => 25.4 / DPI; 	# 1 mm in points 
-use constant in => 1 / DPI;     # how many points in an inch
+use constant DPI => 72;		# PostScript points per inch (standard)
+use constant mm => 25.4 / 72; 	# 1 mm in points
+use constant in => 1;           # 1 inch in points (72 points)
 use constant pt => 1;           # 1 point
-use constant DENSITY => "300"; 		# DPI 
+use constant DENSITY => "300"; 	# Image DPI for rendering 
 
 
 # Page Size in mm
@@ -69,11 +70,13 @@ use constant A6_x => 105;        # x points in an A6 page ( 298 )
 use constant A6_y => 148;        # y points in an A6 page ( 420 )
 
 # mediabox - the size of our paper in points
-my $size_x = A4_x/mm;
-my $size_y = A4_y/mm;
+# Changed to A5 for booklet printing
+my $size_x = A5_x/mm;
+my $size_y = A5_y/mm;
 
 # cropbox - the size we'll cut the paper down to at the end
-my $crop_size = 3/mm;
+# Improved margins for print (3mm bleed)
+my $crop_size = 5/mm;
 my $crop_left = $crop_size;
 my $crop_bottom = $crop_size;
 my $crop_right = $size_x - $crop_size;
@@ -90,12 +93,12 @@ my $INFOBOX_HEIGHT = $size_y - $INFOBOX_BOTTOM;
 my $x_buffer = 50;
 my $y_buffer = 50;
 
-# Font size
-my $headline_font_size =  120/pt;
-my $date_font_size = 60/pt;
-my $from_font_size = 30/pt;
+# Font size - adjusted for A5 format
+my $headline_font_size =  80/pt;   # Reduced from 120 for A5
+my $date_font_size = 40/pt;        # Reduced from 60
+my $from_font_size = 24/pt;        # Reduced from 30
 my $text_font_size = "";
-my $verbose_font_size = 30/pt;
+my $verbose_font_size = 20/pt;     # Reduced from 30
 
 my $scale = 1;
 
@@ -105,8 +108,9 @@ our @images;
 
 our $text_as_line;
 
-# Include some vars from config.pl 
-my %config = do '/Users/markus/git/mail2pdf/config.pl';
+# Include some vars from config.pl
+my $config_file = glob('~/git/mail2pdf/config.pl') || './config.pl';
+my %config = do $config_file or die "Could not load config.pl: $!";
 
 my $username = $config{username} or die("missing username from config.pl");
 my $oauth_token = $config{oauth_token} or die("missing oauth_token from config.pl");
@@ -215,9 +219,16 @@ if($type eq "mbox") {
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
 
-	## Embed a TTF
-	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
-	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+	## Embed a TTF or use core fonts
+	my $courier;
+	my $courier_bold;
+	if (-e '/Library/Fonts/Courier New.ttf') {
+		$courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+		$courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+	} else {
+		$courier = $pdf->corefont('Courier');
+		$courier_bold = $pdf->corefont('Courier-Bold');
+	}
 
 	# --------------------------------------------------
 	# This is the main loop. It's executed once for each email
@@ -288,9 +299,16 @@ elsif($type eq "imap") {
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
 	
-	## Embed a TTF
-	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
-	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+	## Embed a TTF or use core fonts
+	my $courier;
+	my $courier_bold;
+	if (-e '/Library/Fonts/Courier New.ttf') {
+		$courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+		$courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+	} else {
+		$courier = $pdf->corefont('Courier');
+		$courier_bold = $pdf->corefont('Courier-Bold');
+	}
 
 	# import messages
 	my @msgs = $imap->messages() or die "Could not messages: $@\n";
@@ -390,9 +408,16 @@ elsif($type eq "s3mount") {
 	# --------------------------------------------
 	my $pdf = pdf_file("", "create");
 	
-	## Embed a TTF
-	my $courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
-	my $courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+	## Embed a TTF or use core fonts
+	my $courier;
+	my $courier_bold;
+	if (-e '/Library/Fonts/Courier New.ttf') {
+		$courier = $pdf->ttfont('/Library/Fonts/Courier New.ttf');
+		$courier_bold = $pdf->ttfont('/Library/Fonts/Courier New Bold.ttf');
+	} else {
+		$courier = $pdf->corefont('Courier');
+		$courier_bold = $pdf->corefont('Courier-Bold');
+	}
 
 	# generate a /tmp/ subdirectory .. 
 	$tmp_dir_hash = md5_hex( $mount . $pdf . $hash );
@@ -732,154 +757,26 @@ sub pdf_add_email {
 	logging("VERBOSE", "'$date' Email from '$from'");
 
 
-	# Add new Page 
+	# Add new Page
 	my $page = $pdf->page;
-	
+
 	# printting details
 	$page->mediabox( 0,0, $size_x, $size_y);
-	#$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
+	$page->cropbox( $crop_left, $crop_bottom, $crop_right, $crop_top );
 
-	# Make InfoBox variable
-	# Add a box with background color
-	if($ADD_INFOBOX) {
-
-		my $color_box = $page->gfx;
-		$color_box->fillcolor('orange');
-		$color_box->rect( 0 ,            	# left
-				$INFOBOX_BOTTOM,   # bottom
-				$size_x,       		# width
-				$INFOBOX_HEIGHT);      # height
-		$color_box->fill;
-
-	# or just space with a line
-	} else {
-
-		my $line = $page->gfx;
-		$line->strokecolor('black');
-		$line->linewidth(5);
-		$line->move( 0, $INFOBOX_BOTTOM );
-		$line->line( $size_x, $INFOBOX_BOTTOM );
-		$line->stroke;
-
-	}
-
-	# Debug/Verbose - Mode: print Email-Number on Page	
-	if($verbose || $debug) {
-
-		my $headline_page_count = $page->text;
-		$headline_page_count->font( $courier_bold , $verbose_font_size);
-		$headline_page_count->fillcolor('black');
-		$headline_page_count->translate( $size_x * 0.1  , $size_y - ($INFOBOX_HEIGHT * 0.9) );
-		$headline_page_count->text_center($email_count);
-	}
-	
-	# Headline Information
-
-	#
-	# Todo: calculate the position new/correct based on font size etc
-	#
-	
-	# Date
-	my $headline_date = $page->text;
-	$headline_date->font( $courier , $date_font_size);
-	$headline_date->fillcolor('black');
-	$headline_date->translate( $size_x * 0.08  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ));
-	$headline_date->text_center($date);
-
-
-	# Year
-	my $headline_year = $page->text;
-	$headline_year->font( $courier, $date_font_size);
-	$headline_year->fillcolor('black');
-	$headline_year->translate( $size_x - ($size_x * 0.02)  , $size_y - ( $INFOBOX_HEIGHT * 0.7 ) );
-	$headline_year->text_right($emailyear);
-
-	# --------------------------------------	
-	# print subject
-	# --------------------------------------	
-	if($subject) {
-		
-		# Fix encoding
-		chomp($subject);
-		if( $subject =~ /.*(utf-8|utf8|UTF-8|UTF8).*/) {
-
-			my $decoded 	= decode_mimewords($subject);
-			$subject 	= decode("utf8", $decoded);
-			
-			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject'");
+	# Magazine-Style Layout:
+	# Prepare subject for overlay
+	my $subject_clean = $subject;
+	if($subject_clean) {
+		chomp($subject_clean);
+		if( $subject_clean =~ /.*(utf-8|utf8|UTF-8|UTF8).*/) {
+			my $decoded = decode_mimewords($subject_clean);
+			$subject_clean = decode("utf8", $decoded);
+			logging("VERBOSE", "Subject encoding is utf8 .. decoded - '$subject_clean'");
 		}
-
-		my $tb  = PDF::TextBlock->new({
-				pdf       => $pdf,
-				page	  => $page,
-				text	  => $subject,
-				align     => 'justify',
-				x	  => $size_x * 0.15,
-				y	  => $size_y - ( $INFOBOX_HEIGHT * 0.7 ),
-				w	  => $size_x * 0.8,
-				h	  => $INFOBOX_HEIGHT * 0.7,
-				lead	  => 35 * 1.2,
-				fonts     => {
-					default => PDF::TextBlock::Font->new({
-						pdf  => $pdf,
-						font => $courier,
-						size => 35,
-					}),
-				},
-		});
-
-		my($endw, $ypos, $overflow)= $tb->apply();
-		logging("VERBOSE", "subject - X:$endw,Y:$ypos, '$overflow' .. result for tb-apply()");
-		logging("VERBOSE", "subject: '$subject' länge: '" . length($subject) . "'");
 	}
 
-	# ----------------------------------------------------------------
-	# ContentText
-	# ----------------------------------------------------------------
-	my $text_length = length($text_as_line);
-
-	if($text_length > 0) {
-
-
-		logging("VERBOSE", "Text: '$text_as_line' length: '" . $text_length . "'");
-
-		my $text  = $page->text;
-		my $tb= PDF::TextBlock->new({
-				pdf       => $pdf,
-				page	  => $page,
-				text	  => $text_as_line,
-				align	  => 'justify',
-				x	  => $size_x * 0.15,
-				y         => $size_y - ( $INFOBOX_HEIGHT + 50),
-			  	w 	  => $size_x * 0.7, 
-				h	  => $text_length > 150 ? $INFOBOX_HEIGHT * 2 : $INFOBOX_HEIGHT,
-				lead	  => 30 * 1.2,
-				fonts     => {
-					default => PDF::TextBlock::Font->new({
-						pdf  => $pdf,
-						font => $courier,
-						size => 30,
-						fillcolor => '#000000',
-					}),
-				},
-		});
-
-		my($endw, $ypos, $overflow)= $tb->apply();
-		
-		logging("VERBOSE", "text - x:$endw ,y:$ypos, $overflow .. result for tb-apply()");
-	
-		my $y_value  = calculate_y_value(length($text_as_line), "line");
-
-		# add another line depending on text_length	
-		my $line = $page->gfx;
-		$line->strokecolor('black');
-		$line->linewidth(5);
-		$line->move( 0, $y_value );
-		$line->line( $size_x, $y_value );
-		$line->stroke;
-
-		logging("VERBOSE", "Adding black line add y '$y_value'");
-	}
+	# Magazine-Style: Content-Text nicht anzeigen, nur Bilder mit Overlays
 	
 	# --------------------------------------------------------
 	# TODO: check orientation of image
@@ -1032,10 +929,10 @@ sub pdf_add_email {
 
 			# Add Video Note
 			my $headline_video = $page->text;
-			$headline_video->font( $courier_bold, 100/pt);
+			$headline_video->font( $courier_bold, 60/pt);
 			$headline_video->fillcolor('black');
-			$headline_video->translate( $size_x - ($size_x * 0.5)  , $size_y - ( 4 * $INFOBOX_HEIGHT ) ) ;
-			$headline_video->text_right("Video");
+			$headline_video->translate( $size_x * 0.5 , $size_y * 0.5 ) ;
+			$headline_video->text_center("Video");
 		} 
 
 		return 0;
@@ -1051,31 +948,153 @@ sub pdf_add_email {
 
 		logging("VERBOSE", "File exists '$file'");
 
-		# Calculate x/y Position, so Image is "center" and fit nicly
-		my $position_x = int (($size_x - $w ) / 2); 
-		my $position_y = int ( $y_buffer / 2);		
+		my $photo_file = $pdf->image_jpeg($file);
 
-		# Space for PIC(s)
-		my $pic_space_y = calculate_y_value(length($text_as_line), "line");
-	
-		# calculate y position
-		if($h < $pic_space_y ) {
+		# ========================================================
+		# Intelligente Foto-Skalierung basierend auf Qualität
+		# ========================================================
 
-			# center for y axis
-			$position_y = int ( $pic_space_y - $h) / 2;
-			logging("VERBOSE", "Calculate new y position '$position_y' $pic_space_y h '$h'");
+		my $photo_scale;
+		my $position_x;
+		my $position_y;
+
+		# Prüfe Foto-Auflösung für Qualitätsentscheidung
+		my $min_dimension = ($w < $h) ? $w : $h;
+		my $max_dimension = ($w > $h) ? $w : $h;
+
+		if($max_dimension >= 1800) {
+			# Hohe Qualität: Fullscreen (Cover-Modus)
+			logging("VERBOSE", "High quality image ($max_dimension px) - using fullscreen");
+			my $scale_x = $size_x / $w;
+			my $scale_y = $size_y / $h;
+			$photo_scale = ($scale_x > $scale_y) ? $scale_x : $scale_y;
+
+			my $scaled_w = $w * $photo_scale;
+			my $scaled_h = $h * $photo_scale;
+			$position_x = ($size_x - $scaled_w) / 2;
+			$position_y = ($size_y - $scaled_h) / 2;
+
+		} elsif($max_dimension < 1200) {
+			# Niedrige Qualität: Max 75% der Seite (zentriert mit Rand)
+			logging("VERBOSE", "Lower quality image ($max_dimension px) - limiting scale to 75%");
+			my $target_w = $size_x * 0.75;
+			my $target_h = $size_y * 0.75;
+			my $scale_x = $target_w / $w;
+			my $scale_y = $target_h / $h;
+			$photo_scale = ($scale_x < $scale_y) ? $scale_x : $scale_y;  # fit mode
+
+			my $scaled_w = $w * $photo_scale;
+			my $scaled_h = $h * $photo_scale;
+			$position_x = ($size_x - $scaled_w) / 2;
+			$position_y = ($size_y - $scaled_h) / 2;
+
+		} else {
+			# Mittlere Qualität: 85% der Seite
+			logging("VERBOSE", "Medium quality image ($max_dimension px) - using 85% scale");
+			my $target_w = $size_x * 0.85;
+			my $target_h = $size_y * 0.85;
+			my $scale_x = $target_w / $w;
+			my $scale_y = $target_h / $h;
+			$photo_scale = ($scale_x < $scale_y) ? $scale_x : $scale_y;
+
+			my $scaled_w = $w * $photo_scale;
+			my $scaled_h = $h * $photo_scale;
+			$position_x = ($size_x - $scaled_w) / 2;
+			$position_y = ($size_y - $scaled_h) / 2;
 		}
 
-		my $photo_file = $pdf->image_jpeg($file);
-		
-		#If coordinate transformations have been made (see Coordinate
-		#Transformations above), the position and scale will be relative to the
-		#updated coordinates.  Otherwise, [0,0] will represent the bottom left
-		#corner of the page, and C<$width> and C<$height> will be measured at
-		#72dpi.
-		
-		$photo->image( $photo_file, $position_x, $position_y, $scale);
-		logging("VERBOSE", "Write pic - size_x: '$size_x' size_y: '$size_y' w x h : '$w x $h' pos_x: '$position_x', pos_y: '$position_y' scale: '$scale'");
+		$photo->image( $photo_file, $position_x, $position_y, $photo_scale);
+		logging("VERBOSE", "Write photo - quality: $max_dimension"."px, scale: $photo_scale, pos: $position_x,$position_y");
+
+		# ========================================================
+		# Magazine-Style Overlays (Balance: lesbar aber dezent)
+		# ========================================================
+
+		# Prüfe ob Email Text hat
+		my $has_text = (length($text_as_line) > 0);
+
+		# Top Overlay (45px hoch) - etwas höher für bessere Platzierung
+		my $overlay_height_top = 45;
+		my $overlay_top = $page->gfx;
+		$overlay_top->fillcolor('#222222');
+		$overlay_top->rect(0, $size_y - $overlay_height_top, $size_x, $overlay_height_top);
+		$overlay_top->fill;
+
+		# Datum - gut lesbar und zentriert, mit Abstand vom oberen Rand
+		my $date_formatted = "$day. " . _get_month_name($month + 1);
+		my $headline_date = $page->text;
+		$headline_date->font($courier_bold, 16/pt);
+		$headline_date->fillcolor('white');
+		$headline_date->translate($size_x * 0.5, $size_y - 28);
+		$headline_date->text_center($date_formatted);
+
+		# Jahr - klein rechts innen, deutlich vom Rand weg
+		my $headline_year = $page->text;
+		$headline_year->font($courier, 9/pt);
+		$headline_year->fillcolor('#AAAAAA');
+		$headline_year->translate($size_x * 0.9, $size_y - 22);
+		$headline_year->text_right($emailyear);
+
+		# Bottom Overlay - Höhe abhängig von Text
+		my $overlay_height_bottom = $has_text ? 90 : 50;
+		my $overlay_bottom = $page->gfx;
+		$overlay_bottom->fillcolor('#1a1a1a');
+		$overlay_bottom->rect(0, 0, $size_x, $overlay_height_bottom);
+		$overlay_bottom->fill;
+
+		# Subject - lesbar, mit Abstand vom Rand
+		if($subject_clean) {
+			my $y_pos = $has_text ? $overlay_height_bottom - 20 : 32;
+			my $subject_text = $page->text;
+			$subject_text->font($courier_bold, 11/pt);
+			$subject_text->fillcolor('white');
+			$subject_text->translate($size_x * 0.5, $y_pos);
+			$subject_text->text_center($subject_clean);
+		}
+
+		# From - sichtbar, mit genug Abstand vom unteren Rand
+		if($name) {
+			my $y_pos = $has_text ? $overlay_height_bottom - 38 : 16;
+			my $from_text = $page->text;
+			$from_text->font($courier, 8/pt);
+			$from_text->fillcolor('#AAAAAA');
+			$from_text->translate($size_x * 0.5, $y_pos);
+			$from_text->text_center($name);
+		}
+
+		# Text - wenn vorhanden, als Textblock unten
+		if($has_text && length($text_as_line) < 200) {
+			my $text_display = $page->text;
+			$text_display->font($courier, 8/pt);
+			$text_display->fillcolor('#CCCCCC');
+
+			# Mehrzeiliger Text (maximal 3 Zeilen)
+			my $max_width = $size_x * 0.8;
+			my $text_short = substr($text_as_line, 0, 150);
+			$text_short .= "..." if length($text_as_line) > 150;
+
+			# Einfache Textausgabe zentriert
+			$text_display->translate($size_x * 0.5, 25);
+			$text_display->text_center($text_short);
+		}
+
+		# Hinweis wenn Text zu lang ist
+		if($has_text && length($text_as_line) >= 200) {
+			my $hint = $page->text;
+			$hint->font($courier, 8/pt);
+			$hint->fillcolor('#888888');
+			$hint->translate($size_x * 0.5, 15);
+			$hint->text_center("[mit Text]");
+		}
+
+		# Email count in debug mode (links unten)
+		if($verbose || $debug) {
+			my $count_text = $page->text;
+			$count_text->font($courier, 8/pt);
+			$count_text->fillcolor('#666666');
+			$count_text->translate(10, 8);
+			$count_text->text("#" . $email_count);
+		}
 	}
 	else {
 
@@ -1089,7 +1108,17 @@ sub pdf_add_email {
 }
 
 # --------------------------------------------------------
-# handle_text  
+# Get month name in German
+# --------------------------------------------------------
+sub _get_month_name {
+	my ($month) = @_;
+	my @months = ('', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+	              'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember');
+	return $months[$month] || $month;
+}
+
+# --------------------------------------------------------
+# handle_text
 # --------------------------------------------------------
 sub handle_text {
 
