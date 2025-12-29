@@ -276,23 +276,33 @@ if($type eq "mbox") {
 }
 
 elsif($type eq "imap") {
-    
+
 	logging("VERBOSE", "type: imap\n");
-   
+
 	# connect to google imap server
-	my $imap = gmail($oauth_token, $username); 
+	my $imap = gmail($oauth_token, $username);
 
 	# choose label/folder
 	my $folder = "Inbox";
 	$imap->exists($folder) or warn "$folder not found: $@\n";
 
-	# select folder	
+	# select folder
 	$imap->select($folder) or warn "$folder not select: $@\n";
-	
+
 	# how many messages are their?
-	my $msgcount = $imap->message_count($folder); 
+	my $msgcount = $imap->message_count($folder);
 	defined($msgcount) or die "Could not message_count: $@\n";
 	logging("VERBOSE", "msg count = '$msgcount'");
+
+	# Auto-reconnect function
+	my $reconnect_imap = sub {
+		if (!$imap->IsConnected()) {
+			logging("VERBOSE", "IMAP connection lost - reconnecting...");
+			$imap = gmail($oauth_token, $username);
+			$imap->select($folder) or die "Could not reselect folder: $@\n";
+			logging("VERBOSE", "IMAP reconnected successfully");
+		}
+	};
 	
 	# --------------------------------------------
 	# create a pdf file / pdf object $pdf 
@@ -338,20 +348,22 @@ elsif($type eq "imap") {
 		logging("VERBOSE", "IMAP Message $msg_cnt from $msgcount");
 
 		# if in year mode, check if email year match
-		logging("DEBUG", "Fetch Date Header"); 
+		logging("DEBUG", "Fetch Date Header");
+		$reconnect_imap->();
 		my $date = $imap->get_header($i, "Date");
-		
+
 		# return 0: ignore | return 1: match
 		my $res_hoy = handle_option_year($year, $date);
-		
+
 		if($res_hoy == 0) {
 
 			logging("DEBUG", "handle_option_year: ignore email based on year ($year)");
 			next;
 		}
 
-		# get message content	
-		logging("DEBUG", "Fetch message"); 
+		# get message content
+		logging("DEBUG", "Fetch message");
+		$reconnect_imap->();
 		my $content = $imap->message_string($i);
 		
 		# start MIME Parser
