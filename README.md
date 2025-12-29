@@ -85,23 +85,114 @@ return (
 
 ## 🔑 Gmail OAuth Token erstellen
 
+### Schritt 1: Google Cloud Projekt einrichten
+
 1. Gehe zu [Google Cloud Console](https://console.cloud.google.com)
 2. Erstelle ein neues Projekt
 3. Aktiviere die **Gmail API**
-4. Erstelle **OAuth 2.0 Credentials** (Desktop App)
-5. Lade die Client-ID und Secret herunter
-6. Verwende gmail-oauth-tools oder ähnliches:
+4. Erstelle **OAuth 2.0 Credentials** (Desktop App / Other)
+5. Notiere dir:
+   - Client-ID
+   - Client-Secret
 
-```bash
-# Mit gmail-oauth-tools
-python oauth2.py --generate_oauth2_token \
-  --client_id=YOUR_CLIENT_ID \
-  --client_secret=YOUR_CLIENT_SECRET
+### Schritt 2: Authorization Code holen
+
+1. Erstelle die OAuth-URL (ersetze `YOUR_CLIENT_ID`):
+
+```
+https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost&response_type=code&scope=https://mail.google.com/&access_type=offline
 ```
 
-7. Kopiere den **Access Token** in deine config.pl
+2. Öffne die URL im Browser
+3. Melde dich mit deinem Gmail-Account an
+4. Erlaube den Zugriff
+5. Kopiere den **Authorization Code** aus der Redirect-URL:
+   ```
+   http://localhost/?code=4/0ATX87lM...&scope=...
+   ```
 
-**Hinweis**: Access Tokens sind zeitlich begrenzt. Für langfristige Nutzung solltest du Refresh Tokens verwenden.
+### Schritt 3: Token generieren mit `exchange_token.pl`
+
+Dieses Script tauscht den Authorization Code gegen Access Token und Refresh Token:
+
+```bash
+# Erst config.pl mit Client-ID und Secret erstellen
+cp config.pl.example config.pl
+# Bearbeite config.pl und füge client_id und client_secret ein
+
+# Dann Authorization Code gegen Tokens tauschen
+perl exchange_token.pl "http://localhost/?code=4/0ATX87lM..."
+# Oder nur den Code:
+perl exchange_token.pl "4/0ATX87lM..."
+```
+
+**Was macht das Script?**
+- Liest Client-ID und Secret aus `config.pl`
+- Sendet Authorization Code an Google OAuth API
+- Empfängt Access Token (gültig 1h) und Refresh Token (unbegrenzt)
+- Aktualisiert `config.pl` automatisch mit beiden Tokens
+- Speichert Refresh Token als Kommentar in `config.pl`
+
+**Ausgabe:**
+```
+✅ Token erfolgreich generiert!
+
+Access Token: ya29.a0Aa7pCA...
+Gültig für: 3599 Sekunden (0 Stunden)
+
+Refresh Token: 1//03JvVXYLO...
+
+✅ config.pl wurde aktualisiert!
+```
+
+### Schritt 4: Token erneuern mit `refresh_token.pl`
+
+Access Tokens laufen nach 1 Stunde ab. Mit dem Refresh Token kannst du neue Access Tokens generieren:
+
+```bash
+perl refresh_token.pl
+```
+
+**Was macht das Script?**
+- Liest Client-ID, Client-Secret und Refresh Token aus `config.pl`
+- Sendet Refresh Token an Google OAuth API
+- Empfängt neuen Access Token (gültig 1h)
+- Aktualisiert `config.pl` automatisch
+
+**Ausgabe:**
+```
+Erneuere Access Token mit Refresh Token...
+
+✅ Neuer Access Token generiert!
+
+Access Token: ya29.a0Aa7pCA...
+Gültig für: 3599 Sekunden (0 Stunden)
+
+✅ config.pl wurde aktualisiert!
+```
+
+**Hinweis**: Führe dieses Script vor jedem längeren Email-Export aus, damit der Token nicht während des Exports abläuft!
+
+### Alternative: Umgebungsvariablen
+
+Statt Secrets in `config.pl` kannst du auch Umgebungsvariablen nutzen:
+
+```bash
+export GMAIL_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+export GMAIL_CLIENT_SECRET="your-client-secret"
+export GMAIL_USERNAME="deine@gmail.com"
+export GMAIL_REFRESH_TOKEN="1//03JvVXYLO..."
+
+perl exchange_token.pl "4/0ATX87lM..."
+perl refresh_token.pl
+```
+
+### Token-Sicherheit ⚠️
+
+- **Niemals** Client-Secret, Access Token oder Refresh Token öffentlich teilen!
+- `config.pl` ist in `.gitignore` und wird NICHT committed
+- Verwende `config.pl.example` als Template (ohne echte Tokens)
+- Bei Kompromittierung: Token in Google Cloud Console widerrufen
 
 ## 📦 Perl-Module (Alle installiert ✅)
 
@@ -179,8 +270,13 @@ Das PDF ist optimiert für:
 ### Hauptdateien
 - `mbox2pdf.pl` - Haupt-Script ⭐
 - `test_pdf.pl` - Test-PDF Generator
-- `config.pl` - Konfiguration
 - `check_modules.pl` - Modul-Checker
+
+### OAuth Token Management
+- `exchange_token.pl` - Tauscht Authorization Code gegen Tokens
+- `refresh_token.pl` - Erneuert Access Token mit Refresh Token
+- `config.pl.example` - Template für Konfiguration
+- `config.pl` - Konfiguration (nicht im Git, enthält Secrets)
 
 ### Dokumentation
 - `README.md` - Diese Datei
@@ -188,6 +284,9 @@ Das PDF ist optimiert für:
 - `INSTALLATION.md` - Installations-Guide
 - `README_IMAGEMAGICK.md` - Image::Magick Hilfe
 - `conversation_log_2025-12-26.md` - Entwicklungslog
+
+### Git
+- `.gitignore` - Schützt Secrets vor versehentlichem Commit
 
 ## 📊 Changelog v2.0 (2025-12-26)
 
@@ -204,23 +303,72 @@ Das PDF ist optimiert für:
 
 ## 🎯 Workflow
 
+### Erster Setup (einmalig)
+
 ```
-┌─────────────┐
-│   Gmail     │
-│   IMAP      │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│ mbox2pdf.pl │
-│  + config   │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│ A5 PDF      │
-│ (Druckbar)  │
-└─────────────┘
+┌────────────────────┐
+│ Google Cloud       │
+│ OAuth Setup        │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ Authorization Code │
+│ (im Browser holen) │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ exchange_token.pl  │
+│ → Access Token     │
+│ → Refresh Token    │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ config.pl          │
+│ (automatisch       │
+│  aktualisiert)     │
+└────────────────────┘
+```
+
+### Regulärer Email-Export
+
+```
+┌────────────────────┐
+│ refresh_token.pl   │ ← Vor jedem Export
+│ (Token erneuern)   │   (wenn Token abgelaufen)
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ Gmail IMAP         │
+│ (mit frischem      │
+│  Access Token)     │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ mbox2pdf.pl        │
+│ --type imap        │
+│ --verbose          │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│ A5 PDF             │
+│ (druckfertig)      │
+└────────────────────┘
+```
+
+### Typischer Export-Befehl
+
+```bash
+# Token erneuern (falls älter als 1h)
+perl refresh_token.pl
+
+# Emails exportieren
+perl mbox2pdf.pl --type imap --testlimit 1,50 --verbose
 ```
 
 ## 🔗 Links
