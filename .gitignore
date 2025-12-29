@@ -1,0 +1,21 @@
+# Config with secrets
+config.pl
+
+# Temporary files
+*.backup
+*.bak
+*~
+
+# Perl local modules
+local/
+perl5/
+
+# PDF output
+*.pdf
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

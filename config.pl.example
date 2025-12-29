@@ -1,0 +1,16 @@
+# Configuration file for mbox2pdf.pl
+# Copy this file to config.pl and fill in your values
+# IMPORTANT: Use 'return' keyword!
+
+return (
+    username    => 'your-email@gmail.com',
+    oauth_token => 'your_oauth_token_here',
+    client_id   => 'your-client-id.apps.googleusercontent.com',
+    client_secret => 'your-client-secret',
+    path        => '/tmp/',
+    filename    => 'gmail-export.pdf',
+    s3mount     => '/tmp/s3mount/'  # optional, only for s3mount type
+);
+
+# Refresh Token (für Token-Erneuerung mit refresh_token.pl):
+# your-refresh-token-here
