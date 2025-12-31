@@ -294,13 +294,38 @@ elsif($type eq "imap") {
 	defined($msgcount) or die "Could not message_count: $@\n";
 	logging("VERBOSE", "msg count = '$msgcount'");
 
-	# Auto-reconnect function
-	my $reconnect_imap = sub {
-		if (!$imap->IsConnected()) {
-			logging("VERBOSE", "IMAP connection lost - reconnecting...");
-			$imap = gmail($oauth_token, $username);
-			$imap->select($folder) or die "Could not reselect folder: $@\n";
-			logging("VERBOSE", "IMAP reconnected successfully");
+	# Auto-reconnect with retry logic
+	my $imap_command_with_retry = sub {
+		my ($command) = @_;
+		my $max_retries = 3;
+		my $retry_count = 0;
+		my $result;
+
+		while ($retry_count < $max_retries) {
+			my $error = 0;
+			eval {
+				# Try command
+				$result = $command->();
+			};
+
+			if ($@) {
+				$error = 1;
+				$retry_count++;
+				if ($retry_count < $max_retries) {
+					logging("VERBOSE", "IMAP command failed (attempt $retry_count/$max_retries), reconnecting...");
+					sleep(2); # Wait before retry
+
+					# Reconnect
+					$imap = gmail($oauth_token, $username);
+					$imap->select($folder) or die "Could not reselect folder: $@\n";
+					logging("VERBOSE", "IMAP reconnected successfully");
+				} else {
+					die "IMAP command failed after $max_retries attempts: $@";
+				}
+			}
+
+			# Success - return result
+			return $result unless $error;
 		}
 	};
 	
@@ -349,8 +374,8 @@ elsif($type eq "imap") {
 
 		# if in year mode, check if email year match
 		logging("DEBUG", "Fetch Date Header");
-		$reconnect_imap->();
-		my $date = $imap->get_header($i, "Date");
+		my $date;
+		$imap_command_with_retry->(sub { $date = $imap->get_header($i, "Date"); });
 
 		# return 0: ignore | return 1: match
 		my $res_hoy = handle_option_year($year, $date);
@@ -363,8 +388,8 @@ elsif($type eq "imap") {
 
 		# get message content
 		logging("DEBUG", "Fetch message");
-		$reconnect_imap->();
-		my $content = $imap->message_string($i);
+		my $content;
+		$imap_command_with_retry->(sub { $content = $imap->message_string($i); });
 		
 		# start MIME Parser
 		my $parser = new MIME::Parser;
