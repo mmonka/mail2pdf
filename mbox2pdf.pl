@@ -793,6 +793,12 @@ sub pdf_add_email {
 	# Logging
 	logging("VERBOSE", "'$date' Email from '$from'");
 
+	# Skip emails with only videos (no images)
+	my $image_count = scalar @images;
+	if ($image_count == 0 && $found_video > 0) {
+		logging("VERBOSE", "Skipping email - contains only video, no images");
+		return;
+	}
 
 	# Add new Page
 	my $page = $pdf->page;
