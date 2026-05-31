@@ -1,0 +1,70 @@
+# Scrapbook A4 Theme - 4 Polaroids pro Seite
+# Kompaktes Layout für das ganze Buch auf wenigen Seiten
+
+name: "Scrapbook A4 (4 pro Seite)"
+description: "4 Polaroids pro A4-Seite im Scrapbook-Stil"
+
+page:
+  size: "A4"
+  width: "210mm"
+  height: "297mm"
+  background: "#ffffff"
+  padding: "8mm"
+
+layout:
+  photos_per_page: 4
+  style: "scrapbook"
+
+photo:
+  border_top: "3mm"
+  border_left: "3mm"
+  border_right: "3mm"
+  border_bottom: "12mm"
+  background: "#fff9f0"
+  shadow: "0 2px 8px rgba(0,0,0,0.18)"
+  rotation_min: -4
+  rotation_max: 4
+  max_width: "55mm"
+  max_height: "42mm"
+
+grid:
+  gap: "2mm"
+  layouts:
+    2: "1x2"
+    3: "2x2"
+    4: "2x2"
+
+fonts:
+  heading:
+    family: "Caveat"
+    weight: 700
+    size: "11pt"
+  date:
+    family: "Caveat"
+    weight: 400
+    size: "9pt"
+  body:
+    family: "Patrick Hand"
+    weight: 400
+    size: "8pt"
+  sender:
+    family: "Patrick Hand"
+    weight: 400
+    size: "7pt"
+  fallback: "cursive, 'Comic Sans MS', sans-serif"
+
+colors:
+  text: "#2c2c2c"
+  date: "#666666"
+  sender: "#888888"
+  accent: "#c0392b"
+
+overlays:
+  top:
+    enabled: false
+  bottom:
+    enabled: false
+
+decorations:
+  tape:
+    enabled: false

@@ -1,0 +1,78 @@
+# Modern Magazine Theme
+# Fullscreen-Fotos mit eleganten Overlays
+
+name: "Modern Magazine"
+description: "Eleganter Magazin-Stil mit Fullscreen-Fotos"
+
+page:
+  size: "A5"
+  width: "148mm"
+  height: "210mm"
+  background: "#1a1a1a"
+  padding: "0"
+
+photo:
+  # Fullscreen, kein Rahmen
+  border_top: "0"
+  border_left: "0"
+  border_right: "0"
+  border_bottom: "0"
+  background: "transparent"
+  shadow: "none"
+  rotation_min: 0
+  rotation_max: 0
+  max_width: "148mm"
+  max_height: "210mm"
+  # Cover-Modus: Bild füllt die Seite
+  object_fit: "cover"
+
+grid:
+  gap: "2mm"
+  layouts:
+    2: "1x2"
+    3: "1x3"
+    4: "2x2"
+    5: "2x3"
+
+fonts:
+  heading:
+    family: "Montserrat"
+    weight: 700
+    size: "24pt"
+  date:
+    family: "Montserrat"
+    weight: 300
+    size: "32pt"
+  body:
+    family: "Open Sans"
+    weight: 400
+    size: "11pt"
+  sender:
+    family: "Open Sans"
+    weight: 300
+    size: "10pt"
+  fallback: "Helvetica, Arial, sans-serif"
+
+colors:
+  text: "#ffffff"
+  date: "#ffffff"
+  sender: "rgba(255,255,255,0.7)"
+  accent: "#e74c3c"
+
+# Overlays statt Rahmen
+overlays:
+  top:
+    enabled: true
+    height: "50px"
+    background: "linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)"
+  bottom:
+    enabled: true
+    height: "80px"
+    background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent)"
+
+decorations:
+  tape:
+    enabled: false
+  date_stamp:
+    style: "minimal"
+    position: "top-overlay"

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title | default('Email Album') }}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Patrick+Hand&family=Montserrat:wght@300;400;700&family=Open+Sans:wght@300;400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        {{ css | safe }}
+    </style>
+</head>
+<body>
+    {% if multi_per_page %}
+    {# Scrapbook Layout: Multiple polaroids per page #}
+    {% for page_group in grouped_pages %}
+    <article class="page scrapbook-page">
+        {% for page in page_group %}
+        <div class="polaroid polaroid-{{ loop.index }}" style="--rotation: {{ page.rotation }}deg;">
+            {% if page.images|length >= 1 %}
+            <div class="photo-container single">
+                <img src="{{ page.images[0].path }}" alt="Photo" class="photo">
+            </div>
+            {% endif %}
+
+            <div class="caption">
+                <div class="date">{{ page.date_formatted }}</div>
+                {% if page.subject %}
+                <div class="subject">{{ page.subject }}</div>
+                {% endif %}
+                {% if page.sender_name %}
+                <div class="sender">von {{ page.sender_name }}</div>
+                {% endif %}
+            </div>
+
+            {% if page.year %}
+            <div class="year-label">{{ page.year }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </article>
+    {% endfor %}
+
+    {% else %}
+    {# Single polaroid per page #}
+    {% for page in pages %}
+    <article class="page {% if page.rotation %}rotated{% endif %}" style="{% if page.rotation %}--rotation: {{ page.rotation }}deg;{% endif %}">
+
+        {% if theme.decorations.tape.enabled %}
+        <div class="tape" style="transform: rotate({{ theme.decorations.tape.rotation }}deg);"></div>
+        {% endif %}
+
+        {% if theme.overlays.top.enabled or theme.overlays.bottom.enabled %}
+        {# Magazine-Style: Fullscreen image with overlays #}
+        <div class="fullscreen-photo">
+            {% if page.images|length >= 1 %}
+            <img src="{{ page.images[0].path }}" alt="Photo" class="photo-cover">
+            {% endif %}
+        </div>
+
+        {% if theme.overlays.top.enabled %}
+        <div class="overlay-top">
+            <span class="overlay-date">{{ page.date_formatted }}</span>
+            <span class="overlay-year">{{ page.year }}</span>
+        </div>
+        {% endif %}
+
+        {% if theme.overlays.bottom.enabled %}
+        <div class="overlay-bottom">
+            {% if page.subject %}
+            <div class="overlay-subject">{{ page.subject }}</div>
+            {% endif %}
+            {% if page.sender_name %}
+            <div class="overlay-sender">{{ page.sender_name }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        {# Polaroid/Minimal Style: Photo with caption frame #}
+        <div class="polaroid">
+            {% if page.images|length == 1 %}
+            <div class="photo-container single">
+                <img src="{{ page.images[0].path }}" alt="Photo" class="photo">
+            </div>
+            {% elif page.images|length > 1 %}
+            <div class="photo-container grid grid-{{ page.images|length }}">
+                {% for img in page.images %}
+                <img src="{{ img.path }}" alt="Photo {{ loop.index }}" class="photo">
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="photo-container no-image">
+                <div class="placeholder">Keine Bilder</div>
+            </div>
+            {% endif %}
+
+            <div class="caption">
+                <div class="date">{{ page.date_formatted }}</div>
+                {% if page.subject %}
+                <div class="subject">{{ page.subject }}</div>
+                {% endif %}
+                {% if page.sender_name %}
+                <div class="sender">von {{ page.sender_name }}</div>
+                {% endif %}
+                {% if page.text_preview %}
+                <div class="text-preview">{{ page.text_preview }}</div>
+                {% endif %}
+            </div>
+
+            {# Jahr dezent im Polaroid-Rahmen unten rechts #}
+            {% if page.year %}
+            <div class="year-label">{{ page.year }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </article>
+    {% endfor %}
+    {% endif %}
+
+    {% if cover %}
+    {# Back Cover - fullscreen image, no text #}
+    <article class="page cover-page">
+        <div class="cover-photo">
+            <img src="{{ cover.image_path }}" alt="Cover" class="cover-image">
+        </div>
+    </article>
+    {% endif %}
+</body>
+</html>

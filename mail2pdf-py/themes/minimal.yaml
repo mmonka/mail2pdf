@@ -1,0 +1,78 @@
+# Minimal Clean Theme
+# Viel Weißraum, schlichte Typografie
+
+name: "Minimal Clean"
+description: "Reduzierter, eleganter Stil mit viel Weißraum"
+
+page:
+  size: "A5"
+  width: "148mm"
+  height: "210mm"
+  background: "#ffffff"
+  padding: "15mm"
+
+photo:
+  border_top: "0"
+  border_left: "0"
+  border_right: "0"
+  border_bottom: "0"
+  background: "#ffffff"
+  shadow: "0 1px 3px rgba(0,0,0,0.1)"
+  rotation_min: 0
+  rotation_max: 0
+  max_width: "118mm"
+  max_height: "130mm"
+  # Dezenter Rahmen
+  border_style: "1px solid #eee"
+
+grid:
+  gap: "10mm"
+  layouts:
+    2: "1x2"
+    3: "1x3"
+    4: "2x2"
+    5: "2x3"
+
+fonts:
+  heading:
+    family: "Inter"
+    weight: 600
+    size: "16pt"
+  date:
+    family: "Inter"
+    weight: 300
+    size: "12pt"
+  body:
+    family: "Inter"
+    weight: 400
+    size: "10pt"
+  sender:
+    family: "Inter"
+    weight: 400
+    size: "9pt"
+  fallback: "system-ui, -apple-system, sans-serif"
+
+colors:
+  text: "#333333"
+  date: "#999999"
+  sender: "#666666"
+  accent: "#2563eb"
+
+overlays:
+  top:
+    enabled: false
+  bottom:
+    enabled: false
+
+decorations:
+  tape:
+    enabled: false
+  date_stamp:
+    style: "minimal"
+    position: "below-photo"
+
+# Spezielle Minimal-Optionen
+minimal_options:
+  show_divider: true
+  divider_color: "#eeeeee"
+  text_align: "left"

@@ -1,0 +1,91 @@
+# Scrapbook A4 Theme
+# 2 Polaroids pro Seite, versetzt wie in einem echten Scrapbook
+# Optimiert für A4-Druck
+
+name: "Scrapbook A4"
+description: "2 Polaroids pro A4-Seite im Scrapbook-Stil"
+
+page:
+  size: "A4"
+  width: "210mm"
+  height: "297mm"
+  background: "#ffffff"
+  padding: "10mm"
+
+# Layout: 2 Polaroids pro Seite
+layout:
+  photos_per_page: 2
+  style: "scrapbook"  # versetzt
+
+photo:
+  border_top: "5mm"
+  border_left: "5mm"
+  border_right: "5mm"
+  border_bottom: "18mm"
+  background: "#fff9f0"
+  shadow: "0 3px 10px rgba(0,0,0,0.2)"
+  rotation_min: -5
+  rotation_max: 5
+  # Kleinere Größe für 2 pro Seite
+  max_width: "75mm"
+  max_height: "60mm"
+
+# Positionen für die 2 Polaroids (versetzt)
+positions:
+  first:
+    x: "15mm"
+    y: "20mm"
+    rotation: -3
+  second:
+    x: "110mm"
+    y: "150mm"
+    rotation: 4
+
+grid:
+  gap: "3mm"
+  layouts:
+    2: "1x2"
+    3: "2x2"
+    4: "2x2"
+
+fonts:
+  heading:
+    family: "Caveat"
+    weight: 700
+    size: "14pt"
+  date:
+    family: "Caveat"
+    weight: 400
+    size: "12pt"
+  body:
+    family: "Patrick Hand"
+    weight: 400
+    size: "10pt"
+  sender:
+    family: "Patrick Hand"
+    weight: 400
+    size: "9pt"
+  fallback: "cursive, 'Comic Sans MS', sans-serif"
+
+colors:
+  text: "#2c2c2c"
+  date: "#666666"
+  sender: "#888888"
+  accent: "#c0392b"
+
+overlays:
+  top:
+    enabled: false
+  bottom:
+    enabled: false
+
+decorations:
+  tape:
+    enabled: false
+  date_stamp:
+    style: "handwritten"
+    position: "bottom"
+
+print:
+  bleed: "3mm"
+  safe_margin: "5mm"

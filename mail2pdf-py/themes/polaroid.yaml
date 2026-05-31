@@ -1,0 +1,86 @@
+# Polaroid Scrapbook Theme
+# Fotos wie eingeklebte Polaroids mit handschriftlichen Notizen
+# Optimiert für A5-Druck
+
+name: "Polaroid Scrapbook"
+description: "Nostalgischer Scrapbook-Stil mit Polaroid-Fotos"
+
+page:
+  size: "A5"
+  width: "148mm"
+  height: "210mm"
+  background: "#ffffff"  # Weiß für Druck
+  padding: "10mm"        # Sicherer Druckrand
+
+photo:
+  # Polaroid mit farbigem Rand
+  border_top: "4mm"
+  border_left: "4mm"
+  border_right: "4mm"
+  border_bottom: "18mm"  # Breiter unten für Beschriftung
+  background: "#fff9f0"  # Leicht warmer Polaroid-Ton
+  shadow: "0 4px 14px rgba(0,0,0,0.4)"
+  # Leichte zufällige Rotation für natürlichen Look
+  rotation_min: -3
+  rotation_max: 3
+  # Maximale Bildgröße (ohne Rahmen)
+  max_width: "120mm"
+  max_height: "110mm"
+
+# Druckspezifische Einstellungen
+print:
+  dpi: 300               # Auflösung (300 = Profi-Druck, 150 = Draft)
+  quality: 95            # JPEG-Qualität (92-100, höher = bessere Qualität)
+  bleed: "3mm"           # Beschnittzugabe
+  safe_margin: "3mm"     # Sicherheitsabstand vom Rand
+  crop_marks: false      # Schnittmarken (für Profi-Druck)
+
+# Multi-Image Grid
+grid:
+  gap: "8mm"
+  layouts:
+    2: "1x2"   # 2 Bilder: nebeneinander
+    3: "2x2"   # 3 Bilder: 2 oben, 1 unten
+    4: "2x2"   # 4 Bilder: 2x2 Grid
+    5: "3x2"   # 5+ Bilder: 3er Reihen
+
+fonts:
+  # Google Fonts - Handschriftlich
+  heading:
+    family: "Caveat"
+    weight: 700
+    size: "28pt"
+  date:
+    family: "Caveat"
+    weight: 400
+    size: "18pt"
+  body:
+    family: "Patrick Hand"
+    weight: 400
+    size: "14pt"
+  sender:
+    family: "Patrick Hand"
+    weight: 400
+    size: "12pt"
+  # Fallback falls Google Fonts nicht laden
+  fallback: "cursive, 'Comic Sans MS', sans-serif"
+
+colors:
+  text: "#2c2c2c"
+  date: "#666666"
+  sender: "#888888"
+  accent: "#c0392b"  # Rotes Akzent (wie Stempel)
+
+# Dekorative Elemente
+decorations:
+  # Tape-Effekt oben (deaktiviert - sieht auf echten Fotos oft deplatziert aus)
+  tape:
+    enabled: false
+    color: "rgba(255, 235, 180, 0.7)"
+    width: "40mm"
+    height: "12mm"
+    rotation: -2
+  # Handschriftlicher Datumsstempel
+  date_stamp:
+    style: "handwritten"  # oder "stamp", "minimal"
+    position: "bottom"    # im Polaroid-Rahmen unten

@@ -1,0 +1,446 @@
+/* mail2pdf Dynamic Styles - Generated from Theme */
+/* Optimiert für A5-Druck (148mm x 210mm) mit Beschnittzugabe */
+
+{% set bleed = theme.print.bleed | default('3mm') %}
+{% set bleed_num = bleed | replace('mm', '') | float %}
+{% set page_width_num = theme.page.width | replace('mm', '') | float %}
+{% set page_height_num = theme.page.height | replace('mm', '') | float %}
+{% set total_width = (page_width_num + 2 * bleed_num) | string + 'mm' %}
+{% set total_height = (page_height_num + 2 * bleed_num) | string + 'mm' %}
+
+@page {
+    /* Seitengröße inkl. Beschnittzugabe (3mm auf jeder Seite) */
+    size: {{ total_width }} {{ total_height }};
+    margin: 0;
+    /* Bleed: {{ bleed }} auf jeder Seite */
+}
+
+/* Print-spezifische Einstellungen */
+@media print {
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: {{ theme.fonts.body.family }}, {{ theme.fonts.fallback }};
+    background: {{ theme.page.background }};
+    color: {{ theme.colors.text }};
+}
+
+/* Each email = one page */
+.page {
+    /* Volle Seitengröße inkl. Beschnittzugabe */
+    width: {{ total_width }};
+    height: {{ total_height }};
+    /* Padding = Bleed + Sicherheitsabstand (damit Inhalt im sicheren Bereich bleibt) */
+    padding: calc({{ bleed }} + {{ theme.print.safe_margin | default('5mm') }});
+    background: {{ theme.page.background }};
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    page-break-after: always;
+    overflow: hidden;
+}
+
+.page:last-child {
+    page-break-after: auto;
+}
+
+/* Polaroid Frame */
+.polaroid {
+    background: {{ theme.photo.background }};
+    padding: {{ theme.photo.border_top }} {{ theme.photo.border_right }} {{ theme.photo.border_bottom }} {{ theme.photo.border_left }};
+    box-shadow: {{ theme.photo.shadow }};
+    {% if theme.photo.border_style %}
+    border: {{ theme.photo.border_style }};
+    {% endif %}
+    max-width: 128mm;
+    width: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Sichtbarer Rahmen für Druck */
+    border: 1.5pt solid rgba(0,0,0,0.35);
+}
+
+.page.rotated .polaroid {
+    transform: rotate(var(--rotation, 0deg));
+}
+
+/* Photo Container */
+.photo-container {
+    width: {{ theme.photo.max_width }};
+    max-height: {{ theme.photo.max_height }};
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+}
+
+.photo-container.single {
+    /* Single image centered */
+}
+
+.photo-container.single .photo {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+/* Multi-Image Grid */
+.photo-container.grid {
+    display: grid;
+    gap: {{ theme.grid.gap }};
+}
+
+.grid-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.grid-3 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.grid-3 .photo:last-child {
+    grid-column: span 2;
+}
+
+.grid-4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.grid-5, .grid-6 {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.photo-container.grid .photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Caption Area (Polaroid bottom) */
+.caption {
+    padding-top: 3mm;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+}
+
+.caption .date {
+    font-family: {{ theme.fonts.date.family }}, {{ theme.fonts.fallback }};
+    font-size: 14pt;
+    font-weight: {{ theme.fonts.date.weight }};
+    color: {{ theme.colors.date }};
+    margin-bottom: 1mm;
+}
+
+.caption .subject {
+    font-family: {{ theme.fonts.heading.family }}, {{ theme.fonts.fallback }};
+    font-size: 16pt;
+    font-weight: {{ theme.fonts.heading.weight }};
+    color: {{ theme.colors.text }};
+    margin-bottom: 1mm;
+    line-height: 1.2;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.caption .sender {
+    font-family: {{ theme.fonts.sender.family }}, {{ theme.fonts.fallback }};
+    font-size: 10pt;
+    font-weight: {{ theme.fonts.sender.weight }};
+    color: {{ theme.colors.sender }};
+    margin-bottom: 1mm;
+}
+
+.caption .text-preview {
+    font-family: {{ theme.fonts.body.family }}, {{ theme.fonts.fallback }};
+    font-size: 9pt;
+    font-weight: {{ theme.fonts.body.weight }};
+    color: {{ theme.colors.text }};
+    opacity: 0.7;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.3;
+}
+
+/* Tape Decoration */
+.tape {
+    position: absolute;
+    top: 5mm;
+    left: 50%;
+    transform: translateX(-50%) rotate({{ theme.decorations.tape.rotation | default(-2) }}deg);
+    width: {{ theme.decorations.tape.width | default('40mm') }};
+    height: {{ theme.decorations.tape.height | default('12mm') }};
+    background: {{ theme.decorations.tape.color | default('rgba(255, 235, 180, 0.7)') }};
+    z-index: 10;
+}
+
+/* Magazine-Style Fullscreen Photo (mit Bleed) */
+.fullscreen-photo {
+    position: absolute;
+    /* Bild geht bis in den Beschnittbereich */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    /* Bild füllt gesamte Seite inkl. Bleed */
+}
+
+.fullscreen-photo .photo-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Magazine-Style Overlays */
+.overlay-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: {{ theme.overlays.top.height | default('50px') }};
+    background: {{ theme.overlays.top.background | default('linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)') }};
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 16px;
+    color: {{ theme.colors.text }};
+}
+
+.overlay-top .overlay-date {
+    font-family: {{ theme.fonts.date.family }}, {{ theme.fonts.fallback }};
+    font-size: 16pt;
+    font-weight: bold;
+}
+
+.overlay-top .overlay-year {
+    font-size: 10pt;
+    opacity: 0.7;
+}
+
+.overlay-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: {{ theme.overlays.bottom.height | default('80px') }};
+    background: {{ theme.overlays.bottom.background | default('linear-gradient(to top, rgba(0,0,0,0.85), transparent)') }};
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 16px;
+    text-align: center;
+    color: {{ theme.colors.text }};
+}
+
+.overlay-subject {
+    font-family: {{ theme.fonts.heading.family }}, {{ theme.fonts.fallback }};
+    font-size: 12pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.overlay-sender {
+    font-size: 9pt;
+    opacity: 0.7;
+}
+
+/* No Image Placeholder */
+.no-image .placeholder {
+    width: {{ theme.photo.max_width }};
+    height: 80mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e0e0e0;
+    color: #999;
+    font-style: italic;
+}
+
+/* Year Label - dezent im Polaroid unten rechts */
+.year-label {
+    position: absolute;
+    bottom: 3mm;
+    right: 4mm;
+    font-family: {{ theme.fonts.body.family }}, {{ theme.fonts.fallback }};
+    font-size: 8pt;
+    color: #bbb;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   Scrapbook Layout (2 Polaroids pro Seite)
+   ======================================== */
+.scrapbook-page {
+    position: relative;
+}
+
+.scrapbook-page .polaroid {
+    position: absolute;
+    transform: rotate(var(--rotation, 0deg));
+}
+
+/* Erstes Polaroid: oben links */
+.scrapbook-page .polaroid-1 {
+    top: 25mm;
+    left: 12mm;
+}
+
+/* Zweites Polaroid: oben rechts */
+.scrapbook-page .polaroid-2 {
+    top: 32mm;
+    right: 10mm;
+}
+
+/* Drittes Polaroid: unten links (näher an oben) */
+.scrapbook-page .polaroid-3 {
+    top: 150mm;
+    left: 15mm;
+}
+
+/* Viertes Polaroid: unten rechts */
+.scrapbook-page .polaroid-4 {
+    top: 158mm;
+    right: 12mm;
+}
+
+/* Kleinere Polaroids für A4 mit 2 pro Seite */
+.scrapbook-page .polaroid {
+    max-width: 90mm;
+}
+
+.scrapbook-page .photo-container {
+    width: {{ theme.photo.max_width | default('75mm') }};
+    max-height: {{ theme.photo.max_height | default('60mm') }};
+}
+
+.scrapbook-page .caption {
+    padding-top: 2mm;
+}
+
+.scrapbook-page .caption .date {
+    font-size: 11pt;
+    margin-bottom: 1mm;
+}
+
+.scrapbook-page .caption .subject {
+    font-size: 12pt;
+    margin-bottom: 1mm;
+}
+
+.scrapbook-page .caption .sender {
+    font-size: 8pt;
+}
+
+.scrapbook-page .year-label {
+    font-size: 7pt;
+}
+
+/* Jahr links bei Polaroids die links sind (damit es nicht verdeckt wird) */
+.scrapbook-page .polaroid-1 .year-label,
+.scrapbook-page .polaroid-3 .year-label {
+    left: 4mm;
+    right: auto;
+}
+
+/* Minimal Theme Divider */
+{% if theme.minimal_options %}
+.divider {
+    width: 60%;
+    height: 1px;
+    background: {{ theme.minimal_options.divider_color | default('#eee') }};
+    margin: 8mm auto;
+}
+{% endif %}
+
+/* ========================================
+   Cover Page
+   ======================================== */
+.cover-page {
+    padding: 0 !important;
+    display: block;
+}
+
+.cover-photo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cover-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.3) 0%,
+        rgba(0,0,0,0.1) 30%,
+        rgba(0,0,0,0.1) 70%,
+        rgba(0,0,0,0.4) 100%
+    );
+    padding: 20mm;
+    text-align: center;
+}
+
+.cover-title {
+    font-family: {{ theme.fonts.heading.family }}, {{ theme.fonts.fallback }};
+    font-size: 48pt;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+    letter-spacing: 2px;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.cover-subtitle {
+    font-family: {{ theme.fonts.body.family }}, {{ theme.fonts.fallback }};
+    font-size: 18pt;
+    font-weight: 400;
+    color: white;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    margin-top: 8mm;
+    opacity: 0.9;
+}

@@ -1,0 +1,18 @@
+# mail2pdf Configuration
+# Copy this file to config.yaml and fill in your credentials
+
+gmail:
+  username: "your-email@gmail.com"
+  # OAuth2 credentials from Google Cloud Console
+  client_id: "YOUR_CLIENT_ID.apps.googleusercontent.com"
+  client_secret: "YOUR_CLIENT_SECRET"
+  # Tokens (will be auto-populated after first auth)
+  access_token: ""
+  refresh_token: ""
+
+output:
+  path: "/tmp/"
+  filename: "gmail-export.pdf"
+
+# Default theme: polaroid, magazine, or minimal
+theme: "polaroid"

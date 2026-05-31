@@ -1,5 +1,13 @@
 # Config with secrets
 config.pl
+mail2pdf-py/config.yaml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
 
 # Temporary files
 *.backup
@@ -15,6 +23,10 @@ perl5/
 
 # Logs
 *.log
+
+# Large binaries
+cover.jpeg
+mail2pdf-py/cover.jpeg
 
 # OS files
 .DS_Store
